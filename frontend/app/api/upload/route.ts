@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { v4 as uuidv4 } from "uuid"
-import { exec } from "child_process"
-import { promisify } from "util"
+import { spawn } from "child_process"
 import { getJob, setJob } from "@/lib/jobs-supabase"
-
-const execAsync = promisify(exec)
 
 interface ProcessingOptions {
   quality: "fast" | "good" | "best"
@@ -102,57 +99,151 @@ async function processVideo(
   webmDir: string,
   options: ProcessingOptions
 ) {
-  try {
-    // Map quality to CRF values
-    const qualityMap = {
-      fast: 40,
-      good: 30,
-      best: 20
+  return new Promise<void>(async (resolve, reject) => {
+    try {
+      // Map quality to CRF values
+      const qualityMap = {
+        fast: 40,
+        good: 30,
+        best: 20
+      }
+
+      const crf = qualityMap[options.quality]
+      const bgColor = options.backgroundColor.replace("#", "")
+      const tolerance = options.chromaTolerance
+      const speed = options.processingSpeed
+
+      // OPTIMIZED: Single-pass processing (combines chroma key + WEBM conversion)
+      await setJob(jobId, { status: "processing", progress: 20 })
+      const webmPath = join(webmDir, `${baseFilename}.webm`)
+
+      // Improved chroma keying with better filter chain
+      // Using chromakey filter (more reliable than colorkey)
+      // similarity: 0.0-1.0 (how similar to key color, higher = removes more)
+      // blend: 0.0-1.0 (edge blending, lower = sharper edges)
+      // Map tolerance (0-1) to similarity range (0.15-0.5) for balanced green removal
+      // Lower range prevents removing the subject
+      const similarity = 0.15 + (tolerance * 0.35) // Range: 0.15 to 0.5 (balanced)
+      const blend = 0.1 // Moderate blend for smoother edges
+      
+      // Use chromakey filter - creates alpha channel automatically
+      // chromakey=color:similarity:blend
+      // Then convert to yuva420p format to ensure alpha is preserved
+      const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},format=yuva420p`
+      
+      // Build FFmpeg command with progress reporting
+      // Optimizations for speed:
+      // - -deadline realtime: prioritize speed over quality
+      // - -cpu-used: higher = faster (already using speed parameter)
+      // - -row-mt 1: multi-threaded row processing
+      const ffmpegArgs = [
+        '-i', inputPath,
+        '-vf', keyFilter,
+        '-c:v', 'libvpx-vp9',
+        '-pix_fmt', 'yuva420p',
+        '-auto-alt-ref', '0',
+        '-lag-in-frames', '0',
+        '-deadline', 'realtime', // Prioritize speed
+        '-crf', crf.toString(),
+        '-b:v', '0',
+        '-speed', speed.toString(),
+        '-cpu-used', speed.toString(), // Additional speed boost
+        '-row-mt', '1',
+        '-threads', '8',
+        '-an', // No audio
+        '-y', // Overwrite output
+        webmPath
+      ]
+
+      console.log(`Starting FFmpeg processing for job ${jobId}`)
+      const ffmpeg = spawn('ffmpeg', ffmpegArgs)
+
+      let duration: number | null = null
+      let lastProgress = 20
+
+      // Parse FFmpeg progress output
+      ffmpeg.stderr.on('data', (data: Buffer) => {
+        const output = data.toString()
+        
+        // Extract duration (only once)
+        if (!duration) {
+          const durationMatch = output.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/)
+          if (durationMatch) {
+            const hours = parseInt(durationMatch[1])
+            const minutes = parseInt(durationMatch[2])
+            const seconds = parseInt(durationMatch[3])
+            const centiseconds = parseInt(durationMatch[4])
+            duration = hours * 3600 + minutes * 60 + seconds + centiseconds / 100
+            console.log(`Video duration: ${duration}s`)
+          }
+        }
+
+        // Extract current time
+        const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/)
+        if (timeMatch && duration) {
+          const hours = parseInt(timeMatch[1])
+          const minutes = parseInt(timeMatch[2])
+          const seconds = parseInt(timeMatch[3])
+          const centiseconds = parseInt(timeMatch[4])
+          const currentTime = hours * 3600 + minutes * 60 + seconds + centiseconds / 100
+          
+          // Calculate progress (20% to 95% - leave 5% for finalization)
+          const progress = Math.min(20 + Math.floor((currentTime / duration) * 75), 95)
+          
+          // Only update if progress increased significantly (avoid spam)
+          if (progress > lastProgress + 2) {
+            lastProgress = progress
+            setJob(jobId, { status: "processing", progress }).catch(err => {
+              console.error('Error updating progress:', err)
+            })
+            console.log(`Progress: ${progress}% (${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)`)
+          }
+        }
+      })
+
+      // Handle FFmpeg completion
+      ffmpeg.on('close', async (code) => {
+        if (code === 0) {
+          console.log(`FFmpeg completed successfully for job ${jobId}`)
+          const outputFilename = `${baseFilename}.webm`
+          
+          await setJob(jobId, {
+            status: "completed",
+            progress: 100,
+            outputFilename,
+          })
+          resolve()
+        } else {
+          const errorMsg = `FFmpeg exited with code ${code}`
+          console.error(errorMsg)
+          await setJob(jobId, {
+            status: "error",
+            progress: 0,
+            error: errorMsg,
+          })
+          reject(new Error(errorMsg))
+        }
+      })
+
+      // Handle FFmpeg errors
+      ffmpeg.on('error', async (error) => {
+        console.error('FFmpeg error:', error)
+        await setJob(jobId, {
+          status: "error",
+          progress: 0,
+          error: error.message || "FFmpeg processing failed",
+        })
+        reject(error)
+      })
+
+    } catch (error: any) {
+      await setJob(jobId, {
+        status: "error",
+        progress: 0,
+        error: error.message || "Processing failed",
+      })
+      reject(error)
     }
-
-    const crf = qualityMap[options.quality]
-    const bgColor = options.backgroundColor.replace("#", "")
-    const tolerance = options.chromaTolerance
-    const speed = options.processingSpeed
-
-    // OPTIMIZED: Single-pass processing (combines chroma key + WEBM conversion)
-    await setJob(jobId, { status: "processing", progress: 20 })
-    const webmPath = join(webmDir, `${baseFilename}.webm`)
-
-    // Improved chroma keying with better filter chain
-    // Using chromakey filter (more reliable than colorkey)
-    // similarity: 0.0-1.0 (how similar to key color, higher = removes more)
-    // blend: 0.0-1.0 (edge blending, lower = sharper edges)
-    // Map tolerance (0-1) to similarity range (0.15-0.5) for balanced green removal
-    // Lower range prevents removing the subject
-    const similarity = 0.15 + (tolerance * 0.35) // Range: 0.15 to 0.5 (balanced)
-    const blend = 0.1 // Moderate blend for smoother edges
-    
-    // Use chromakey filter - creates alpha channel automatically
-    // chromakey=color:similarity:blend
-    // Then convert to yuva420p format to ensure alpha is preserved
-    const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},format=yuva420p`
-    
-    // One command: chroma key + WEBM conversion (much faster!)
-    // CRITICAL: format filter ensures alpha channel is preserved before encoding
-    const combinedCmd = `ffmpeg -i "${inputPath}" -vf "${keyFilter}" -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 -lag-in-frames 0 -crf ${crf} -b:v 0 -speed ${speed} -row-mt 1 -threads 8 -an -y "${webmPath}"`
-
-    await execAsync(combinedCmd)
-    
-    // Store the output filename for easy retrieval
-    const outputFilename = `${baseFilename}.webm`
-    
-    await setJob(jobId, {
-      status: "completed",
-      progress: 100,
-      outputFilename,
-    })
-  } catch (error: any) {
-    await setJob(jobId, {
-      status: "error",
-      progress: 0,
-      error: error.message || "Processing failed",
-    })
-  }
+  })
 }
 
