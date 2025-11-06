@@ -98,8 +98,6 @@ export default function Home() {
           )
         )
 
-        console.log(`Upload complete. Server job ID: ${serverJobId}, Client job ID: ${jobId}`)
-
         // Subscribe to real-time updates
         subscribeToJob(serverJobId, jobId)
       } catch (error) {
@@ -123,41 +121,35 @@ export default function Home() {
   // Polling fallback function
   const pollJobStatus = useCallback(async (serverJobId: string, clientJobId: string) => {
     try {
-      console.log(`Polling job ${serverJobId} (client: ${clientJobId})`)
       const response = await fetch(`/api/jobs/${serverJobId}`)
       if (response.ok) {
         const job = await response.json()
-        console.log(`Polling result for ${serverJobId}:`, { status: job.status, progress: job.progress })
         setJobs((prev) =>
           prev.map((j) => {
             if (j.id === clientJobId) {
               const status = job.status as ProcessingJob['status']
               const isCompleted = status === "completed"
-              console.log(`Updating job ${clientJobId} with status: ${status}, progress: ${job.progress}`)
+              
               if (isCompleted || status === "error") {
                 // Stop polling when done
                 const interval = pollingIntervalsRef.current.get(clientJobId)
                 if (interval) {
                   clearInterval(interval)
                   pollingIntervalsRef.current.delete(clientJobId)
-                  console.log(`Stopped polling for completed job ${clientJobId}`)
                 }
               }
-              const updatedJob = {
+              
+              return {
                 ...j,
                 status,
-                progress: job.progress || j.progress,
+                progress: job.progress ?? j.progress, // Use nullish coalescing to handle 0 properly
                 error: job.error,
                 downloadUrl: isCompleted ? `/api/download/${serverJobId}` : j.downloadUrl,
               }
-              console.log(`Updated job object:`, updatedJob)
-              return updatedJob
             }
             return j
           })
         )
-      } else {
-        console.warn(`Polling failed for ${serverJobId}:`, response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error polling job status:', error)
@@ -179,8 +171,6 @@ export default function Home() {
       pollingIntervalsRef.current.delete(clientJobId)
     }
 
-    console.log(`Subscribing to job ${serverJobId} (client: ${clientJobId})`)
-
     // Check if Supabase is available before trying real-time
     if (isSupabaseAvailable()) {
       // Try real-time subscription
@@ -196,7 +186,6 @@ export default function Home() {
               filter: `id=eq.${serverJobId}`,
             },
             (payload) => {
-              console.log('Real-time update received:', payload)
               const updatedJob = payload.new as any
               setJobs((prev) =>
                 prev.map((job) => {
@@ -231,7 +220,7 @@ export default function Home() {
                       return {
                         ...job,
                         status,
-                        progress: updatedJob.progress || job.progress,
+                        progress: updatedJob.progress ?? job.progress,
                       }
                     }
                   }
@@ -240,25 +229,15 @@ export default function Home() {
               )
             }
           )
-          .subscribe((status) => {
-            console.log(`Subscription status for ${serverJobId}:`, status)
-            if (status === 'SUBSCRIBED') {
-              console.log(`✅ Successfully subscribed to real-time updates for ${serverJobId}`)
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-              console.warn(`⚠️ Real-time subscription failed for ${serverJobId}, using polling`)
-            }
-          })
+          .subscribe()
 
         channelsRef.current.set(clientJobId, channel)
       } catch (error) {
-        console.warn('Failed to create Supabase subscription, using polling:', error)
+        console.error('Failed to create Supabase subscription:', error)
       }
-    } else {
-      console.log('Supabase not available, using polling only')
     }
 
     // Always start polling (works as primary method or backup)
-    console.log(`Starting polling for job ${serverJobId} (client: ${clientJobId})`)
     const pollInterval = setInterval(() => {
       pollJobStatus(serverJobId, clientJobId)
     }, 2000) // Poll every 2 seconds
@@ -541,39 +520,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Debug Info - always show to help debug */}
-                <div className="mb-4 p-2 bg-slate-100 dark:bg-slate-900 text-xs rounded">
-                  <div>Status: <strong>{job.status}</strong></div>
-                  <div>Progress: <strong>{job.progress}%</strong></div>
-                  <div>Download URL: <strong>{job.downloadUrl || "none"}</strong></div>
-                  <div>Server Job ID: <strong>{job.serverJobId || "none"}</strong></div>
-                  {job.serverJobId && (
-                    <button
-                      onClick={() => {
-                        console.log(`Manual refresh for job ${job.serverJobId}`)
-                        pollJobStatus(job.serverJobId!, job.id)
-                      }}
-                      className="mt-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-                    >
-                      Manual Refresh
-                    </button>
-                  )}
-                </div>
-
-                {/* Show message if completed but no download URL */}
-                {job.status === "completed" && !job.downloadUrl && (
-                  <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-700 dark:text-yellow-400">
-                    Processing complete, but download URL not available. Server Job ID: {job.serverJobId || "unknown"}
-                    {job.serverJobId && (
-                      <button
-                        onClick={() => pollJobStatus(job.serverJobId!, job.id)}
-                        className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded text-xs"
-                      >
-                        Refresh
-                      </button>
-                    )}
-                  </div>
-                )}
 
                 {/* Download Button & Preview */}
                 {job.status === "completed" && job.downloadUrl && (
