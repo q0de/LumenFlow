@@ -48,9 +48,13 @@ export async function POST(request: NextRequest) {
     const baseFilename = filename.replace(/\.[^/.]+$/, "")
 
     // Ensure directories exist
-    const inputDir = join(process.cwd(), "..", "input")
-    const keyedDir = join(process.cwd(), "..", "keyed")
-    const webmDir = join(process.cwd(), "..", "webm")
+    // On Railway/Docker: use /tmp for file storage (persistent volume)
+    // On local: use ../input, ../keyed, ../webm
+    const isProduction = process.env.NODE_ENV === "production"
+    const baseDir = isProduction ? "/tmp" : join(process.cwd(), "..")
+    const inputDir = join(baseDir, "input")
+    const keyedDir = join(baseDir, "keyed")
+    const webmDir = join(baseDir, "webm")
 
     await mkdir(inputDir, { recursive: true })
     await mkdir(keyedDir, { recursive: true })
