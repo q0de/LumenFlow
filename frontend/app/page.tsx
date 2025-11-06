@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { supabase, isSupabaseAvailable } from "@/lib/supabase"
 
 interface ProcessingJob {
-  id: string
+  id: string // Client-side ID
+  serverJobId?: string // Server-side ID from Supabase
   filename: string
   status: "uploading" | "processing" | "completed" | "error"
   progress: number
@@ -88,14 +89,16 @@ export default function Home() {
 
         const { jobId: serverJobId } = await uploadResponse.json()
 
-        // Update job status
+        // Update job status and store serverJobId
         setJobs((prev) =>
           prev.map((job) =>
             job.id === jobId
-              ? { ...job, status: "processing", progress: 10 }
+              ? { ...job, serverJobId, status: "processing", progress: 10 }
               : job
           )
         )
+
+        console.log(`Upload complete. Server job ID: ${serverJobId}, Client job ID: ${jobId}`)
 
         // Subscribe to real-time updates
         subscribeToJob(serverJobId, jobId)
@@ -120,19 +123,23 @@ export default function Home() {
   // Polling fallback function
   const pollJobStatus = useCallback(async (serverJobId: string, clientJobId: string) => {
     try {
+      console.log(`Polling job ${serverJobId} (client: ${clientJobId})`)
       const response = await fetch(`/api/jobs/${serverJobId}`)
       if (response.ok) {
         const job = await response.json()
+        console.log(`Polling result for ${serverJobId}:`, { status: job.status, progress: job.progress })
         setJobs((prev) =>
           prev.map((j) => {
             if (j.id === clientJobId) {
               const status = job.status as ProcessingJob['status']
+              console.log(`Updating job ${clientJobId} with status: ${status}, progress: ${job.progress}`)
               if (status === "completed" || status === "error") {
                 // Stop polling when done
                 const interval = pollingIntervalsRef.current.get(clientJobId)
                 if (interval) {
                   clearInterval(interval)
                   pollingIntervalsRef.current.delete(clientJobId)
+                  console.log(`Stopped polling for completed job ${clientJobId}`)
                 }
               }
               return {
@@ -146,6 +153,8 @@ export default function Home() {
             return j
           })
         )
+      } else {
+        console.warn(`Polling failed for ${serverJobId}:`, response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error polling job status:', error)
@@ -246,10 +255,14 @@ export default function Home() {
     }
 
     // Always start polling (works as primary method or backup)
+    console.log(`Starting polling for job ${serverJobId} (client: ${clientJobId})`)
     const pollInterval = setInterval(() => {
       pollJobStatus(serverJobId, clientJobId)
     }, 2000) // Poll every 2 seconds
     pollingIntervalsRef.current.set(clientJobId, pollInterval)
+    
+    // Also do an immediate poll to get current status
+    pollJobStatus(serverJobId, clientJobId)
   }, [pollJobStatus])
 
   // Cleanup subscriptions and polling on unmount
