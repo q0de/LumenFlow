@@ -113,17 +113,63 @@ export default function Home() {
     }
   }, [options])
 
-  // Use Supabase real-time subscriptions instead of polling
+  // Use Supabase real-time subscriptions with polling fallback
   const channelsRef = useRef<Map<string, any>>(new Map())
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // Polling fallback function
+  const pollJobStatus = useCallback(async (serverJobId: string, clientJobId: string) => {
+    try {
+      const response = await fetch(`/api/jobs/${serverJobId}`)
+      if (response.ok) {
+        const job = await response.json()
+        setJobs((prev) =>
+          prev.map((j) => {
+            if (j.id === clientJobId) {
+              const status = job.status as ProcessingJob['status']
+              if (status === "completed" || status === "error") {
+                // Stop polling when done
+                const interval = pollingIntervalsRef.current.get(clientJobId)
+                if (interval) {
+                  clearInterval(interval)
+                  pollingIntervalsRef.current.delete(clientJobId)
+                }
+              }
+              return {
+                ...j,
+                status,
+                progress: job.progress || j.progress,
+                error: job.error,
+                downloadUrl: job.status === "completed" ? `/api/download/${serverJobId}` : j.downloadUrl,
+              }
+            }
+            return j
+          })
+        )
+      }
+    } catch (error) {
+      console.error('Error polling job status:', error)
+    }
+  }, [])
 
   const subscribeToJob = useCallback((serverJobId: string, clientJobId: string) => {
     // Clean up existing subscription if any
     const existingChannel = channelsRef.current.get(clientJobId)
     if (existingChannel) {
       supabase.removeChannel(existingChannel)
+      channelsRef.current.delete(clientJobId)
     }
 
-    // Subscribe to real-time updates
+    // Clean up existing polling if any
+    const existingInterval = pollingIntervalsRef.current.get(clientJobId)
+    if (existingInterval) {
+      clearInterval(existingInterval)
+      pollingIntervalsRef.current.delete(clientJobId)
+    }
+
+    console.log(`Subscribing to job ${serverJobId} (client: ${clientJobId})`)
+
+    // Try real-time subscription first
     const channel = supabase
       .channel(`job:${serverJobId}`)
       .on(
@@ -135,6 +181,7 @@ export default function Home() {
           filter: `id=eq.${serverJobId}`,
         },
         (payload) => {
+          console.log('Real-time update received:', payload)
           const updatedJob = payload.new as any
           setJobs((prev) =>
             prev.map((job) => {
@@ -178,18 +225,41 @@ export default function Home() {
           )
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log(`Subscription status for ${serverJobId}:`, status)
+        if (status === 'SUBSCRIBED') {
+          console.log(`Successfully subscribed to real-time updates for ${serverJobId}`)
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn(`Real-time subscription failed for ${serverJobId}, falling back to polling`)
+          // Fallback to polling if real-time fails
+          const interval = setInterval(() => {
+            pollJobStatus(serverJobId, clientJobId)
+          }, 2000) // Poll every 2 seconds
+          pollingIntervalsRef.current.set(clientJobId, interval)
+        }
+      })
 
     channelsRef.current.set(clientJobId, channel)
-  }, [])
 
-  // Cleanup subscriptions on unmount
+    // Also start polling as a backup (will be stopped if real-time works)
+    const pollInterval = setInterval(() => {
+      pollJobStatus(serverJobId, clientJobId)
+    }, 3000) // Poll every 3 seconds as backup
+    pollingIntervalsRef.current.set(clientJobId, pollInterval)
+  }, [pollJobStatus])
+
+  // Cleanup subscriptions and polling on unmount
   useEffect(() => {
     return () => {
       channelsRef.current.forEach((channel) => {
         supabase.removeChannel(channel)
       })
       channelsRef.current.clear()
+      
+      pollingIntervalsRef.current.forEach((interval) => {
+        clearInterval(interval)
+      })
+      pollingIntervalsRef.current.clear()
     }
   }, [])
 
