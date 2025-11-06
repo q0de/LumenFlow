@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { useDropzone } from "react-dropzone"
 import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { supabase } from "@/lib/supabase"
+import { supabase, isSupabaseAvailable } from "@/lib/supabase"
 
 interface ProcessingJob {
   id: string
@@ -169,82 +169,86 @@ export default function Home() {
 
     console.log(`Subscribing to job ${serverJobId} (client: ${clientJobId})`)
 
-    // Try real-time subscription first
-    const channel = supabase
-      .channel(`job:${serverJobId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'jobs',
-          filter: `id=eq.${serverJobId}`,
-        },
-        (payload) => {
-          console.log('Real-time update received:', payload)
-          const updatedJob = payload.new as any
-          setJobs((prev) =>
-            prev.map((job) => {
-              if (job.id === clientJobId) {
-                const status = updatedJob.status as ProcessingJob['status']
-                if (status === "completed") {
-                  // Clean up subscription
-                  const ch = channelsRef.current.get(clientJobId)
-                  if (ch) {
-                    supabase.removeChannel(ch)
-                    channelsRef.current.delete(clientJobId)
+    // Check if Supabase is available before trying real-time
+    if (isSupabaseAvailable()) {
+      // Try real-time subscription
+      try {
+        const channel = supabase
+          .channel(`job:${serverJobId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'jobs',
+              filter: `id=eq.${serverJobId}`,
+            },
+            (payload) => {
+              console.log('Real-time update received:', payload)
+              const updatedJob = payload.new as any
+              setJobs((prev) =>
+                prev.map((job) => {
+                  if (job.id === clientJobId) {
+                    const status = updatedJob.status as ProcessingJob['status']
+                    if (status === "completed") {
+                      // Clean up subscription
+                      const ch = channelsRef.current.get(clientJobId)
+                      if (ch) {
+                        supabase.removeChannel(ch)
+                        channelsRef.current.delete(clientJobId)
+                      }
+                      return {
+                        ...job,
+                        status: "completed",
+                        progress: 100,
+                        downloadUrl: `/api/download/${serverJobId}`,
+                      }
+                    } else if (status === "error") {
+                      // Clean up subscription
+                      const ch = channelsRef.current.get(clientJobId)
+                      if (ch) {
+                        supabase.removeChannel(ch)
+                        channelsRef.current.delete(clientJobId)
+                      }
+                      return {
+                        ...job,
+                        status: "error",
+                        error: updatedJob.error || "Processing failed",
+                      }
+                    } else {
+                      return {
+                        ...job,
+                        status,
+                        progress: updatedJob.progress || job.progress,
+                      }
+                    }
                   }
-                  return {
-                    ...job,
-                    status: "completed",
-                    progress: 100,
-                    downloadUrl: `/api/download/${serverJobId}`,
-                  }
-                } else if (status === "error") {
-                  // Clean up subscription
-                  const ch = channelsRef.current.get(clientJobId)
-                  if (ch) {
-                    supabase.removeChannel(ch)
-                    channelsRef.current.delete(clientJobId)
-                  }
-                  return {
-                    ...job,
-                    status: "error",
-                    error: updatedJob.error || "Processing failed",
-                  }
-                } else {
-                  return {
-                    ...job,
-                    status,
-                    progress: updatedJob.progress || job.progress,
-                  }
-                }
-              }
-              return job
-            })
+                  return job
+                })
+              )
+            }
           )
-        }
-      )
-      .subscribe((status) => {
-        console.log(`Subscription status for ${serverJobId}:`, status)
-        if (status === 'SUBSCRIBED') {
-          console.log(`Successfully subscribed to real-time updates for ${serverJobId}`)
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn(`Real-time subscription failed for ${serverJobId}, falling back to polling`)
-          // Fallback to polling if real-time fails
-          const interval = setInterval(() => {
-            pollJobStatus(serverJobId, clientJobId)
-          }, 2000) // Poll every 2 seconds
-          pollingIntervalsRef.current.set(clientJobId, interval)
-        }
-      })
+          .subscribe((status) => {
+            console.log(`Subscription status for ${serverJobId}:`, status)
+            if (status === 'SUBSCRIBED') {
+              console.log(`✅ Successfully subscribed to real-time updates for ${serverJobId}`)
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.warn(`⚠️ Real-time subscription failed for ${serverJobId}, using polling`)
+            }
+          })
 
-    channelsRef.current.set(clientJobId, channel)
+        channelsRef.current.set(clientJobId, channel)
+      } catch (error) {
+        console.warn('Failed to create Supabase subscription, using polling:', error)
+      }
+    } else {
+      console.log('Supabase not available, using polling only')
+    }
 
-    // Also start polling as a backup (will be stopped if real-time works)
+    // Always start polling (works as primary method or backup)
     const pollInterval = setInterval(() => {
       pollJobStatus(serverJobId, clientJobId)
-    }, 3000) // Poll every 3 seconds as backup
+    }, 2000) // Poll every 2 seconds
     pollingIntervalsRef.current.set(clientJobId, pollInterval)
   }, [pollJobStatus])
 

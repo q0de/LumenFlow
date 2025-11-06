@@ -26,13 +26,11 @@ function getSupabaseClient(): SupabaseClient {
       ? 'Missing Supabase environment variables on server. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Railway Variables and redeploy.'
       : 'Missing Supabase environment variables in client bundle. The app needs to be rebuilt with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY set during build time.'
     
-    // For client-side, we can't throw (would crash the app), but we can log and return a dummy client
-    // The polling fallback will handle updates
+    // For client-side, don't create a client at all - return null and let the proxy handle it
     if (typeof window !== 'undefined') {
       console.warn('⚠️ Client-side Supabase unavailable. Real-time updates disabled. Polling will be used instead.')
-      // Return a dummy client that will fail gracefully
-      // The polling fallback in page.tsx will handle job updates
-      return createClient('https://dummy.supabase.co', 'dummy-key')
+      // Return null - the proxy will handle this gracefully
+      return null as any
     }
     
     // Server-side: throw error
@@ -48,12 +46,30 @@ function getSupabaseClient(): SupabaseClient {
   return createClient(supabaseUrl, supabaseAnonKey)
 }
 
+// Check if Supabase is properly configured (for client-side)
+export function isSupabaseAvailable(): boolean {
+  if (typeof window === 'undefined') return true // Server-side always uses createServerClient
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return !!(url && key && !url.includes('placeholder') && !url.includes('dummy'))
+}
+
 // Client-side Supabase client (lazy initialization)
 let supabaseInstance: SupabaseClient | null = null
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
+    // If Supabase isn't available, return a no-op object
+    if (typeof window !== 'undefined' && !isSupabaseAvailable()) {
+      return () => {} // Return no-op functions
+    }
+    
     if (!supabaseInstance) {
-      supabaseInstance = getSupabaseClient()
+      try {
+        supabaseInstance = getSupabaseClient()
+      } catch (error) {
+        console.error('Failed to initialize Supabase client:', error)
+        return () => {} // Return no-op on error
+      }
     }
     const value = (supabaseInstance as any)[prop]
     return typeof value === 'function' ? value.bind(supabaseInstance) : value
