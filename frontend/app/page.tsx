@@ -142,13 +142,15 @@ export default function Home() {
                   console.log(`Stopped polling for completed job ${clientJobId}`)
                 }
               }
-              return {
+              const updatedJob = {
                 ...j,
                 status,
                 progress: job.progress || j.progress,
                 error: job.error,
-                downloadUrl: job.status === "completed" ? `/api/download/${serverJobId}` : j.downloadUrl,
+                downloadUrl: status === "completed" ? `/api/download/${serverJobId}` : (j.downloadUrl || (status === "completed" ? `/api/download/${serverJobId}` : undefined)),
               }
+              console.log(`Updated job object:`, updatedJob)
+              return updatedJob
             }
             return j
           })
@@ -535,6 +537,40 @@ export default function Home() {
                 {job.status === "error" && job.error && (
                   <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
                     {job.error}
+                  </div>
+                )}
+
+                {/* Debug Info - always show to help debug */}
+                <div className="mb-4 p-2 bg-slate-100 dark:bg-slate-900 text-xs rounded">
+                  <div>Status: <strong>{job.status}</strong></div>
+                  <div>Progress: <strong>{job.progress}%</strong></div>
+                  <div>Download URL: <strong>{job.downloadUrl || "none"}</strong></div>
+                  <div>Server Job ID: <strong>{job.serverJobId || "none"}</strong></div>
+                  {job.serverJobId && (
+                    <button
+                      onClick={() => {
+                        console.log(`Manual refresh for job ${job.serverJobId}`)
+                        pollJobStatus(job.serverJobId!, job.id)
+                      }}
+                      className="mt-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                    >
+                      Manual Refresh
+                    </button>
+                  )}
+                </div>
+
+                {/* Show message if completed but no download URL */}
+                {job.status === "completed" && !job.downloadUrl && (
+                  <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-700 dark:text-yellow-400">
+                    Processing complete, but download URL not available. Server Job ID: {job.serverJobId || "unknown"}
+                    {job.serverJobId && (
+                      <button
+                        onClick={() => pollJobStatus(job.serverJobId!, job.id)}
+                        className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded text-xs"
+                      >
+                        Refresh
+                      </button>
+                    )}
                   </div>
                 )}
 
