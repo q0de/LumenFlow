@@ -1,15 +1,15 @@
 FROM node:18-alpine
 
 # Install FFmpeg (required for video processing)
-RUN apk add --no-cache ffmpeg
+RUN apk add --no-cache ffmpeg bash
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (for better caching)
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci --only=production=false
 
 # Copy application files
 COPY . .
@@ -19,6 +19,10 @@ RUN npm run build
 
 # Expose port
 EXPOSE 3000
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
 
 # Start the application
 CMD ["npm", "start"]
