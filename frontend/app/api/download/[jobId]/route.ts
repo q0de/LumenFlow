@@ -9,20 +9,34 @@ export async function GET(
 ) {
   try {
     const { jobId } = params
-    const webmDir = join(process.cwd(), "..", "webm")
+    // On Railway/Docker: use /tmp for file storage (same as upload)
+    // On local: use ../webm
+    const isProduction = process.env.NODE_ENV === "production"
+    const webmDir = isProduction ? "/tmp/webm" : join(process.cwd(), "..", "webm")
+    
+    console.log(`Download request for job ${jobId}, webmDir: ${webmDir}`)
     
     let webmFile: string | undefined
     
     // Try to get job from Supabase
     const job = await getJob(jobId)
+    console.log(`Job from Supabase:`, { 
+      hasJob: !!job, 
+      outputFilename: job?.outputFilename,
+      status: job?.status,
+      progress: job?.progress 
+    })
     
     if (job?.outputFilename) {
       // Use the stored filename
       webmFile = job.outputFilename
       const filePath = join(webmDir, webmFile)
+      console.log(`Trying to read file: ${filePath}`)
       try {
         await readFile(filePath) // Verify file exists
-      } catch {
+        console.log(`✅ File found: ${filePath}`)
+      } catch (error) {
+        console.warn(`❌ File not found at ${filePath}, error:`, error)
         webmFile = undefined // File doesn't exist, fall back to search
       }
     }
@@ -30,17 +44,21 @@ export async function GET(
     // If no job or file not found, search webm directory
     if (!webmFile) {
       try {
+        console.log(`Searching webm directory: ${webmDir}`)
         const files = await readdir(webmDir)
+        console.log(`Found ${files.length} files in webm directory:`, files)
         
         // Try to find file by jobId (if filename contains jobId)
         webmFile = files.find((f) => 
           f.endsWith(".webm") && f.includes(jobId)
         )
+        console.log(`File found by jobId search: ${webmFile || 'none'}`)
         
         // If still not found, get the most recent WEBM file
         // (likely the one just processed)
         if (!webmFile && files.length > 0) {
           const webmFiles = files.filter(f => f.endsWith(".webm"))
+          console.log(`Found ${webmFiles.length} WEBM files, getting most recent`)
           if (webmFiles.length > 0) {
             // Get the most recently modified file
             const fileStats = await Promise.all(
@@ -51,6 +69,7 @@ export async function GET(
             )
             fileStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
             webmFile = fileStats[0].file
+            console.log(`Most recent WEBM file: ${webmFile}`)
           }
         }
       } catch (dirError) {
