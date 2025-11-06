@@ -132,8 +132,9 @@ export default function Home() {
           prev.map((j) => {
             if (j.id === clientJobId) {
               const status = job.status as ProcessingJob['status']
+              const isCompleted = status === "completed"
               console.log(`Updating job ${clientJobId} with status: ${status}, progress: ${job.progress}`)
-              if (status === "completed" || status === "error") {
+              if (isCompleted || status === "error") {
                 // Stop polling when done
                 const interval = pollingIntervalsRef.current.get(clientJobId)
                 if (interval) {
@@ -147,7 +148,7 @@ export default function Home() {
                 status,
                 progress: job.progress || j.progress,
                 error: job.error,
-                downloadUrl: status === "completed" ? `/api/download/${serverJobId}` : (j.downloadUrl || (status === "completed" ? `/api/download/${serverJobId}` : undefined)),
+                downloadUrl: isCompleted ? `/api/download/${serverJobId}` : j.downloadUrl,
               }
               console.log(`Updated job object:`, updatedJob)
               return updatedJob
