@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Video files (input/output)
+input/*.mp4
+keyed/*.mp4
+webm/*.webm
+*.mp4
+*.webm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Unity
+unity-demo/Library/
+unity-demo/Temp/
+unity-demo/Logs/
+unity-demo/obj/
+unity-demo/*.csproj
+unity-demo/*.sln
+unity-demo/*.userprefs
+
+# Logs
+*.log
+
+# Config overrides (optional)
+pipeline_config.local.json
+

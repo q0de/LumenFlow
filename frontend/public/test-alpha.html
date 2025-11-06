@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Alpha Transparency</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(45deg, #ff0000 25%, #00ff00 25%, #00ff00 50%, #ff0000 50%, #ff0000 75%, #00ff00 75%);
+            background-size: 40px 40px;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #333;
+            background: transparent;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .warning {
+            color: orange;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Alpha Transparency Test</h1>
+        <p>This page tests if your WEBM file has proper alpha transparency.</p>
+        
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Drag and drop your processed WEBM file below</li>
+            <li>If the background is <strong>transparent</strong> (shows the checkerboard), it's working! ✅</li>
+            <li>If you see <strong>green or black</strong>, the chroma key didn't work ❌</li>
+        </ol>
+
+        <div style="margin: 20px 0;">
+            <input type="file" id="fileInput" accept="video/webm" style="margin-bottom: 20px;">
+            <video id="videoPlayer" controls style="display: none;"></video>
+        </div>
+
+        <div class="info" id="info">
+            <p>Waiting for file...</p>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const info = document.getElementById('info');
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'video/webm') {
+                const url = URL.createObjectURL(file);
+                videoPlayer.src = url;
+                videoPlayer.style.display = 'block';
+                
+                videoPlayer.addEventListener('loadedmetadata', () => {
+                    const codec = videoPlayer.canPlayType('video/webm; codecs="vp9"');
+                    info.innerHTML = `
+                        <p><strong>File:</strong> ${file.name}</p>
+                        <p><strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>VP9 Support:</strong> ${codec ? '<span class="success">Yes</span>' : '<span class="warning">No</span>'}</p>
+                        <p><strong>Check:</strong> Look at the video above. If you see the checkerboard pattern through the video, alpha transparency is working!</p>
+                    `;
+                });
+            } else {
+                info.innerHTML = '<p class="warning">Please select a WEBM file.</p>';
+            }
+        });
+    </script>
+</body>
+</html>
+

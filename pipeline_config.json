@@ -1,0 +1,13 @@
+{
+  "input_folder": "./input/",
+  "keyed_folder": "./keyed/",
+  "output_folder": "./webm/",
+  "background_hex": "#00FF00",
+  "chroma_tolerance": 0.1,
+  "ffmpeg_threads": 4,
+  "video_codec": "libvpx-vp9",
+  "pix_fmt": "yuva420p",
+  "quality": "good",
+  "unity_export_path": "../UnityProject/Assets/Videos/"
+}
+
