@@ -9,4 +9,5 @@ cmds = ["npm run build"]
 
 [start]
 cmd = "npm start"
+port = 3000
 
