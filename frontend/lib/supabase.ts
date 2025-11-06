@@ -35,8 +35,14 @@ export function createServerClient(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase environment variables')
+  if (!supabaseUrl) {
+    console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable')
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable. Please set it in Railway Variables.')
+  }
+
+  if (!serviceRoleKey) {
+    console.error('Missing Supabase keys. SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY must be set.')
+    throw new Error('Missing Supabase keys. Please set SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY in Railway Variables.')
   }
 
   return createClient(supabaseUrl, serviceRoleKey)
