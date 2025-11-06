@@ -128,9 +128,8 @@ export default function Home() {
           prev.map((j) => {
             if (j.id === clientJobId) {
               const status = job.status as ProcessingJob['status']
-              const isCompleted = status === "completed"
               
-              if (isCompleted || status === "error") {
+              if (status === "completed" || status === "error") {
                 // Stop polling when done
                 const interval = pollingIntervalsRef.current.get(clientJobId)
                 if (interval) {
@@ -139,12 +138,12 @@ export default function Home() {
                 }
               }
               
+              // Use the complete job data from API, keeping only client-side fields
               return {
-                ...j,
-                status,
-                progress: job.progress ?? j.progress, // Use nullish coalescing to handle 0 properly
-                error: job.error,
-                downloadUrl: isCompleted ? `/api/download/${serverJobId}` : j.downloadUrl,
+                ...job, // Spread all API data (includes downloadUrl!)
+                id: j.id, // Keep client-side ID
+                serverJobId: j.serverJobId, // Keep server ID mapping
+                filename: j.filename, // Keep original filename
               }
             }
             return j
@@ -191,37 +190,23 @@ export default function Home() {
                 prev.map((job) => {
                   if (job.id === clientJobId) {
                     const status = updatedJob.status as ProcessingJob['status']
-                    if (status === "completed") {
+                    
+                    if (status === "completed" || status === "error") {
                       // Clean up subscription
                       const ch = channelsRef.current.get(clientJobId)
                       if (ch) {
                         supabase.removeChannel(ch)
                         channelsRef.current.delete(clientJobId)
                       }
-                      return {
-                        ...job,
-                        status: "completed",
-                        progress: 100,
-                        downloadUrl: `/api/download/${serverJobId}`,
-                      }
-                    } else if (status === "error") {
-                      // Clean up subscription
-                      const ch = channelsRef.current.get(clientJobId)
-                      if (ch) {
-                        supabase.removeChannel(ch)
-                        channelsRef.current.delete(clientJobId)
-                      }
-                      return {
-                        ...job,
-                        status: "error",
-                        error: updatedJob.error || "Processing failed",
-                      }
-                    } else {
-                      return {
-                        ...job,
-                        status,
-                        progress: updatedJob.progress ?? job.progress,
-                      }
+                    }
+                    
+                    // Use all data from Supabase, keeping client-side fields
+                    return {
+                      ...job,
+                      status: updatedJob.status,
+                      progress: updatedJob.progress ?? job.progress,
+                      error: updatedJob.error,
+                      downloadUrl: updatedJob.output_filename ? `/api/download/${serverJobId}` : job.downloadUrl,
                     }
                   }
                   return job
