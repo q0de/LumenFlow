@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { CheckCircle } from "lucide-react"
 import { motion } from "framer-motion"
-import Link from "link"
+import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 
 export default function SuccessPage() {
