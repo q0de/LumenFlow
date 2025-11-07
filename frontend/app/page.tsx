@@ -584,6 +584,11 @@ export default function Home() {
             </p>
           </motion.div>
         )}
+        
+        {/* Build Version Footer */}
+        <div className="fixed bottom-2 right-2 text-xs text-slate-400 dark:text-slate-600 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-1 rounded backdrop-blur-sm">
+          Build: {process.env.NEXT_PUBLIC_BUILD_ID || 'dev'}
+        </div>
       </div>
     </div>
   )
