@@ -21,7 +21,9 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
+  enableCodecOverride: boolean
   codec: "vp8" | "vp9"
+  enableResize: boolean
   outputWidth: number
 }
 
@@ -30,7 +32,9 @@ const defaultOptions: ProcessingOptions = {
   chromaTolerance: 0.3, // Balanced default - adjust if green remains or person is removed
   processingSpeed: 4,
   backgroundColor: "#00FF00",
+  enableCodecOverride: true, // Enable codec selection by default
   codec: "vp8", // VP8 for Unity compatibility (default)
+  enableResize: true, // Enable resize by default
   outputWidth: 1354 // Unity optimized width (default)
 }
 
@@ -465,47 +469,79 @@ export default function Home() {
 
                   {/* Codec Selection */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Video Codec
-                    </label>
-                    <select
-                      value={options.codec}
-                      onChange={(e) =>
-                        setOptions({ ...options, codec: e.target.value as "vp8" | "vp9" })
-                      }
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="vp8">VP8 (Unity optimized, default)</option>
-                      <option value="vp9">VP9 (Higher quality, larger files)</option>
-                    </select>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="enableCodec"
+                        checked={options.enableCodecOverride}
+                        onChange={(e) =>
+                          setOptions({ ...options, enableCodecOverride: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+                      />
+                      <label htmlFor="enableCodec" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                        Override Video Codec
+                      </label>
+                    </div>
+                    {options.enableCodecOverride && (
+                      <select
+                        value={options.codec}
+                        onChange={(e) =>
+                          setOptions({ ...options, codec: e.target.value as "vp8" | "vp9" })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="vp8">VP8 (Unity optimized, default)</option>
+                        <option value="vp9">VP9 (Higher quality, larger files)</option>
+                      </select>
+                    )}
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      VP8 is recommended for Unity games. VP9 offers better compression.
+                      {options.enableCodecOverride 
+                        ? "VP8 is recommended for Unity games. VP9 offers better compression."
+                        : "Uses VP8 by default. Enable to choose VP9."}
                     </p>
                   </div>
 
                   {/* Output Width */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Output Width: {options.outputWidth}px
-                    </label>
-                    <input
-                      type="range"
-                      min="512"
-                      max="3840"
-                      step="2"
-                      value={options.outputWidth}
-                      onChange={(e) =>
-                        setOptions({ ...options, outputWidth: parseInt(e.target.value) })
-                      }
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      <span>512px</span>
-                      <span>1354px (Unity default)</span>
-                      <span>3840px (4K)</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="enableResize"
+                        checked={options.enableResize}
+                        onChange={(e) =>
+                          setOptions({ ...options, enableResize: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+                      />
+                      <label htmlFor="enableResize" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                        Resize Output
+                      </label>
                     </div>
+                    {options.enableResize && (
+                      <>
+                        <input
+                          type="range"
+                          min="512"
+                          max="3840"
+                          step="2"
+                          value={options.outputWidth}
+                          onChange={(e) =>
+                            setOptions({ ...options, outputWidth: parseInt(e.target.value) })
+                          }
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          <span>512px</span>
+                          <span>{options.outputWidth}px</span>
+                          <span>3840px (4K)</span>
+                        </div>
+                      </>
+                    )}
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Height scales automatically to maintain aspect ratio.
+                      {options.enableResize
+                        ? "Height scales automatically to maintain aspect ratio."
+                        : "Keeps original video dimensions. Enable to resize."}
                     </p>
                   </div>
 

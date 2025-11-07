@@ -10,7 +10,9 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
+  enableCodecOverride: boolean
   codec: "vp8" | "vp9"
+  enableResize: boolean
   outputWidth: number
 }
 
@@ -30,7 +32,9 @@ export async function POST(request: NextRequest) {
       chromaTolerance: 0.1,
       processingSpeed: 4,
       backgroundColor: "#00FF00",
+      enableCodecOverride: true, // Enable codec selection by default
       codec: "vp8", // VP8 for Unity compatibility (default)
+      enableResize: true, // Enable resize by default
       outputWidth: 1354 // Unity optimized width (default)
     }
 
@@ -134,12 +138,17 @@ async function processVideo(
       
       // Use chromakey filter - creates alpha channel automatically
       // chromakey=color:similarity:blend
-      // Resize based on user options (default 1354px for Unity)
+      // Optionally resize based on user options
       // Then convert to yuva420p format to ensure alpha is preserved
-      const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},scale=${options.outputWidth}:-1,format=yuva420p`
+      const filters = [
+        `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
+        ...(options.enableResize ? [`scale=${options.outputWidth}:-1`] : []),
+        'format=yuva420p'
+      ]
+      const keyFilter = filters.join(',')
       
-      // Select codec based on user options (VP8 or VP9)
-      const codecLib = options.codec === "vp9" ? "libvpx-vp9" : "libvpx" // VP8 default
+      // Select codec based on user options (VP8 default, VP9 if overridden)
+      const codecLib = (options.enableCodecOverride && options.codec === "vp9") ? "libvpx-vp9" : "libvpx" // VP8 default
       
       // Build FFmpeg command with progress reporting
       // Optimizations for speed:
@@ -156,7 +165,7 @@ async function processVideo(
         '-crf', crf.toString(),
         '-b:v', '0',
         '-cpu-used', speed.toString(),
-        ...(options.codec === "vp9" ? ['-row-mt', '1'] : []), // VP9 specific optimization
+        ...(options.enableCodecOverride && options.codec === "vp9" ? ['-row-mt', '1'] : []), // VP9 specific optimization
         '-threads', '8',
         '-an', // No audio
         '-y', // Overwrite output
