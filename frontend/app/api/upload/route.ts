@@ -179,7 +179,7 @@ async function processVideo(
         `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
         ...(options.enableResize ? [`scale=${options.outputWidth}:-1`] : []),
         ...(addWatermark ? [
-          `drawtext=text='LumenFlow':fontsize=24:fontcolor=white@0.6:x=(w-text_w)/2:y=h-th-20:borderw=2:bordercolor=black@0.8`
+          `drawtext=text='GreenScreenRemover.com':fontsize=20:fontcolor=white@0.7:x=(w-text_w)/2:y=h-th-15:borderw=2:bordercolor=black@0.9`
         ] : []),
         'format=yuva420p'
       ]
