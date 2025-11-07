@@ -23,7 +23,7 @@ function getSupabaseClient(): SupabaseClient {
     
     // NEVER use placeholders - fail loudly instead
     const errorMsg = typeof window === 'undefined' 
-      ? 'Missing Supabase environment variables on server. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Railway Variables and redeploy.'
+      ? 'Missing Supabase environment variables on server. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render Environment Variables and redeploy.'
       : 'Missing Supabase environment variables in client bundle. The app needs to be rebuilt with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY set during build time.'
     
     // For client-side, don't create a client at all - return null and let the proxy handle it
