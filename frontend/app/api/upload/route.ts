@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
+import { writeFile, mkdir, stat } from "fs/promises"
 import { join } from "path"
 import { v4 as uuidv4 } from "uuid"
 import { spawn } from "child_process"
@@ -45,17 +45,19 @@ export async function POST(request: NextRequest) {
     const baseFilename = filename.replace(/\.[^/.]+$/, "")
 
     // Ensure directories exist
-    // On Railway/Docker: use /tmp for file storage (persistent volume)
+    // On Render/Railway: use persistent disk (default /data, configurable via STORAGE_PATH)
     // On local: use ../input, ../keyed, ../webm
     const isProduction = process.env.NODE_ENV === "production"
-    const baseDir = isProduction ? "/tmp" : join(process.cwd(), "..")
+    const baseDir = isProduction ? (process.env.STORAGE_PATH || "/data") : join(process.cwd(), "..")
     const inputDir = join(baseDir, "input")
     const keyedDir = join(baseDir, "keyed")
     const webmDir = join(baseDir, "webm")
 
+    console.log(`📁 Storage paths - baseDir: ${baseDir}, webmDir: ${webmDir}`)
     await mkdir(inputDir, { recursive: true })
     await mkdir(keyedDir, { recursive: true })
     await mkdir(webmDir, { recursive: true })
+    console.log(`✅ Directories created successfully`)
 
     // Save uploaded file
     const inputPath = join(inputDir, `${jobId}.${fileExtension}`)
@@ -204,18 +206,31 @@ async function processVideo(
       // Handle FFmpeg completion
       ffmpeg.on('close', async (code) => {
         if (code === 0) {
-          console.log(`FFmpeg completed successfully for job ${jobId}`)
+          console.log(`✅ FFmpeg completed successfully for job ${jobId}`)
           const outputFilename = `${baseFilename}.webm`
+          const fullOutputPath = join(webmDir, outputFilename)
+          console.log(`📦 Output file: ${outputFilename}`)
+          console.log(`📂 Full path: ${fullOutputPath}`)
           
+          // Verify file exists
+          try {
+            const stats = await stat(fullOutputPath)
+            console.log(`✅ File exists! Size: ${stats.size} bytes`)
+          } catch (err) {
+            console.error(`❌ File not found at ${fullOutputPath}:`, err)
+          }
+          
+          console.log(`💾 Updating job status to completed with outputFilename: ${outputFilename}`)
           await setJob(jobId, {
             status: "completed",
             progress: 100,
             outputFilename,
           })
+          console.log(`✅ Job ${jobId} marked as completed in database`)
           resolve()
         } else {
           const errorMsg = `FFmpeg exited with code ${code}`
-          console.error(errorMsg)
+          console.error(`❌ ${errorMsg}`)
           await setJob(jobId, {
             status: "error",
             progress: 0,

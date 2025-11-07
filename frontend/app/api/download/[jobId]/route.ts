@@ -9,10 +9,11 @@ export async function GET(
 ) {
   try {
     const { jobId } = params
-    // On Railway/Docker: use /tmp for file storage (same as upload)
+    // On Railway/Docker: use persistent disk (same as upload, default /data)
     // On local: use ../webm
     const isProduction = process.env.NODE_ENV === "production"
-    const webmDir = isProduction ? "/tmp/webm" : join(process.cwd(), "..", "webm")
+    const baseDir = isProduction ? (process.env.STORAGE_PATH || "/data") : join(process.cwd(), "..")
+    const webmDir = isProduction ? join(baseDir, "webm") : join(process.cwd(), "..", "webm")
     
     console.log(`Download request for job ${jobId}, webmDir: ${webmDir}`)
     

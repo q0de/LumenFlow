@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: lumenflow
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: STORAGE_PATH
+        value: /data
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+    disk:
+      name: lumenflow-storage
+      mountPath: /data
+      sizeGB: 10
+
