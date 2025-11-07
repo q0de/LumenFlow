@@ -4,6 +4,8 @@ import { join } from "path"
 import { v4 as uuidv4 } from "uuid"
 import { spawn } from "child_process"
 import { getJob, setJob } from "@/lib/jobs-supabase"
+import { createServerClient } from "@/lib/supabase"
+import { incrementUsage, shouldAddWatermark } from "@/lib/usage"
 
 interface ProcessingOptions {
   quality: "fast" | "good" | "best"
@@ -73,6 +75,37 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
     await writeFile(inputPath, buffer)
 
+    // Get user info if payments enabled
+    let userId: string | null = null
+    let userTier: "free" | "pro" = "free"
+    let addWatermark = false
+
+    if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true') {
+      const supabase = createServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        userId = user.id
+        
+        // Get user profile to check tier
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile) {
+          userTier = profile.subscription_tier as "free" | "pro"
+          addWatermark = shouldAddWatermark(userTier)
+          
+          // Increment usage count
+          await incrementUsage(user.id).catch(err => {
+            console.error('Failed to increment usage:', err)
+          })
+        }
+      }
+    }
+
     // Initialize job in Supabase
     await setJob(jobId, {
       status: "processing",
@@ -82,7 +115,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Process video asynchronously with options
-    processVideo(jobId, inputPath, baseFilename, keyedDir, webmDir, options).catch(
+    processVideo(jobId, inputPath, baseFilename, keyedDir, webmDir, options, addWatermark).catch(
       async (error) => {
         await setJob(jobId, {
           status: "error",
@@ -107,7 +140,8 @@ async function processVideo(
   baseFilename: string,
   keyedDir: string,
   webmDir: string,
-  options: ProcessingOptions
+  options: ProcessingOptions,
+  addWatermark: boolean = false
 ) {
   return new Promise<void>(async (resolve, reject) => {
     try {
@@ -139,10 +173,14 @@ async function processVideo(
       // Use chromakey filter - creates alpha channel automatically
       // chromakey=color:similarity:blend
       // Optionally resize based on user options
+      // Add watermark for free tier users
       // Then convert to yuva420p format to ensure alpha is preserved
       const filters = [
         `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
         ...(options.enableResize ? [`scale=${options.outputWidth}:-1`] : []),
+        ...(addWatermark ? [
+          `drawtext=text='LumenFlow':fontsize=24:fontcolor=white@0.6:x=(w-text_w)/2:y=h-th-20:borderw=2:bordercolor=black@0.8`
+        ] : []),
         'format=yuva420p'
       ]
       const keyFilter = filters.join(',')

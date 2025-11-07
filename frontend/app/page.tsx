@@ -5,6 +5,10 @@ import { useDropzone } from "react-dropzone"
 import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { supabase, isSupabaseAvailable } from "@/lib/supabase"
+import { useAuth } from "@/lib/auth-context"
+import { HeaderNav } from "@/components/header-nav"
+import { LoginModal } from "@/components/auth/login-modal"
+import { UpgradePrompt } from "@/components/upgrade-prompt"
 
 interface ProcessingJob {
   id: string // Client-side ID
@@ -39,11 +43,15 @@ const defaultOptions: ProcessingOptions = {
 }
 
 export default function Home() {
+  const { user, profile } = useAuth()
   const [jobs, setJobs] = useState<ProcessingJob[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [options, setOptions] = useState<ProcessingOptions>(defaultOptions)
   const [expandedPreview, setExpandedPreview] = useState<string | null>(null)
+  const [showLogin, setShowLogin] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [usageInfo, setUsageInfo] = useState<{used: number, limit: number} | null>(null)
   
   // Progress smoothing - track last update time for interpolation
   const progressTimestampsRef = useRef<Map<string, { progress: number, timestamp: number }>>(new Map())
@@ -65,7 +73,55 @@ export default function Home() {
     localStorage.setItem("lumenflow-options", JSON.stringify(options))
   }, [options])
 
+  // Fetch usage info when user logs in (if payments enabled)
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true' && user) {
+      fetchUsageInfo()
+    }
+  }, [user])
+
+  const fetchUsageInfo = async () => {
+    try {
+      const response = await fetch('/api/usage')
+      if (response.ok) {
+        const data = await response.json()
+        setUsageInfo({
+          used: data.videosProcessed,
+          limit: data.videosLimit
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch usage:', error)
+    }
+  }
+
+  const checkUsageBeforeUpload = () => {
+    // If payments not enabled, allow upload
+    if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS !== 'true') {
+      return true
+    }
+
+    // If user not logged in, show login
+    if (!user) {
+      setShowLogin(true)
+      return false
+    }
+
+    // Check usage limit
+    if (usageInfo && usageInfo.used >= usageInfo.limit) {
+      setShowUpgrade(true)
+      return false
+    }
+
+    return true
+  }
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    // Check usage before processing
+    if (!checkUsageBeforeUpload()) {
+      return
+    }
+
     for (const file of acceptedFiles) {
       if (!file.type.startsWith("video/")) {
         alert(`${file.name} is not a video file`)
@@ -326,6 +382,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Header Navigation */}
+      <HeaderNav />
+      
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
@@ -737,6 +796,16 @@ export default function Home() {
           Build: {process.env.NEXT_PUBLIC_BUILD_ID || 'dev'}
         </div>
       </div>
+
+      {/* Modals */}
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+      <UpgradePrompt
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        reason="limit_reached"
+        videosUsed={usageInfo?.used}
+        videosLimit={usageInfo?.limit}
+      />
     </div>
   )
 }
