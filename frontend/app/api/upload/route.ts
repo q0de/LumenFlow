@@ -10,6 +10,8 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
+  codec: "vp8" | "vp9"
+  outputWidth: number
 }
 
 export async function POST(request: NextRequest) {
@@ -27,7 +29,9 @@ export async function POST(request: NextRequest) {
       quality: "good",
       chromaTolerance: 0.1,
       processingSpeed: 4,
-      backgroundColor: "#00FF00"
+      backgroundColor: "#00FF00",
+      codec: "vp8", // VP8 for Unity compatibility (default)
+      outputWidth: 1354 // Unity optimized width (default)
     }
 
     if (optionsJson) {
@@ -130,19 +134,21 @@ async function processVideo(
       
       // Use chromakey filter - creates alpha channel automatically
       // chromakey=color:similarity:blend
-      // Resize to 1354px width (Unity optimized)
+      // Resize based on user options (default 1354px for Unity)
       // Then convert to yuva420p format to ensure alpha is preserved
-      const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},scale=1354:-1,format=yuva420p`
+      const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},scale=${options.outputWidth}:-1,format=yuva420p`
+      
+      // Select codec based on user options (VP8 or VP9)
+      const codecLib = options.codec === "vp9" ? "libvpx-vp9" : "libvpx" // VP8 default
       
       // Build FFmpeg command with progress reporting
-      // Using VP8 (libvpx) instead of VP9 for better Unity compatibility
       // Optimizations for speed:
       // - -deadline realtime: prioritize speed over quality
       // - -cpu-used: higher = faster (already using speed parameter)
       const ffmpegArgs = [
         '-i', inputPath,
         '-vf', keyFilter,
-        '-c:v', 'libvpx', // VP8 for Unity compatibility
+        '-c:v', codecLib,
         '-pix_fmt', 'yuva420p',
         '-auto-alt-ref', '0',
         '-lag-in-frames', '0',
@@ -150,6 +156,7 @@ async function processVideo(
         '-crf', crf.toString(),
         '-b:v', '0',
         '-cpu-used', speed.toString(),
+        ...(options.codec === "vp9" ? ['-row-mt', '1'] : []), // VP9 specific optimization
         '-threads', '8',
         '-an', // No audio
         '-y', // Overwrite output

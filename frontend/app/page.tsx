@@ -21,13 +21,17 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
+  codec: "vp8" | "vp9"
+  outputWidth: number
 }
 
 const defaultOptions: ProcessingOptions = {
   quality: "good",
   chromaTolerance: 0.3, // Balanced default - adjust if green remains or person is removed
   processingSpeed: 4,
-  backgroundColor: "#00FF00"
+  backgroundColor: "#00FF00",
+  codec: "vp8", // VP8 for Unity compatibility (default)
+  outputWidth: 1354 // Unity optimized width (default)
 }
 
 export default function Home() {
@@ -456,6 +460,52 @@ export default function Home() {
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Use if your green screen isn't pure green (#00FF00)
+                    </p>
+                  </div>
+
+                  {/* Codec Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Video Codec
+                    </label>
+                    <select
+                      value={options.codec}
+                      onChange={(e) =>
+                        setOptions({ ...options, codec: e.target.value as "vp8" | "vp9" })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="vp8">VP8 (Unity optimized, default)</option>
+                      <option value="vp9">VP9 (Higher quality, larger files)</option>
+                    </select>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      VP8 is recommended for Unity games. VP9 offers better compression.
+                    </p>
+                  </div>
+
+                  {/* Output Width */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Output Width: {options.outputWidth}px
+                    </label>
+                    <input
+                      type="range"
+                      min="512"
+                      max="3840"
+                      step="2"
+                      value={options.outputWidth}
+                      onChange={(e) =>
+                        setOptions({ ...options, outputWidth: parseInt(e.target.value) })
+                      }
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      <span>512px</span>
+                      <span>1354px (Unity default)</span>
+                      <span>3840px (4K)</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Height scales automatically to maintain aspect ratio.
                     </p>
                   </div>
 
