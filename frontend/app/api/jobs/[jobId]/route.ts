@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getJob } from "@/lib/jobs-supabase"
 
+// Disable caching for this dynamic route - we need real-time job status
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { jobId: string } }
