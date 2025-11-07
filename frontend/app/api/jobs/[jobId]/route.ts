@@ -12,6 +12,16 @@ export async function GET(
     return NextResponse.json({ error: "Job not found" }, { status: 404 })
   }
 
+  // Debug logging to see what we're sending to frontend
+  console.log(`📤 Sending job data to frontend:`, {
+    jobId,
+    status: job.status,
+    progress: job.progress,
+    hasDownloadUrl: !!job.downloadUrl,
+    downloadUrl: job.downloadUrl,
+    outputFilename: job.outputFilename
+  })
+
   return NextResponse.json(job)
 }
 

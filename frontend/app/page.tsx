@@ -127,6 +127,20 @@ export default function Home() {
       const response = await fetch(`/api/jobs/${serverJobId}`)
       if (response.ok) {
         const job = await response.json()
+        
+        // Debug: log what we received
+        if (job.status === "completed") {
+          console.log(`📥 Frontend received completed job:`, {
+            clientJobId,
+            serverJobId,
+            status: job.status,
+            progress: job.progress,
+            hasDownloadUrl: !!job.downloadUrl,
+            downloadUrl: job.downloadUrl,
+            outputFilename: job.outputFilename
+          })
+        }
+        
         setJobs((prev) =>
           prev.map((j) => {
             if (j.id === clientJobId) {
@@ -151,12 +165,24 @@ export default function Home() {
               }
               
               // Use the complete job data from API, keeping only client-side fields
-              return {
+              const updatedJob = {
                 ...job, // Spread all API data (includes downloadUrl!)
                 id: j.id, // Keep client-side ID
                 serverJobId: j.serverJobId, // Keep server ID mapping
                 filename: j.filename, // Keep original filename
               }
+              
+              // Debug: log what we're setting
+              if (status === "completed") {
+                console.log(`✅ Setting job to completed in UI:`, {
+                  id: updatedJob.id,
+                  status: updatedJob.status,
+                  hasDownloadUrl: !!updatedJob.downloadUrl,
+                  downloadUrl: updatedJob.downloadUrl
+                })
+              }
+              
+              return updatedJob
             }
             return j
           })
