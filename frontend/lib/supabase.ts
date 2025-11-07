@@ -76,30 +76,29 @@ export const supabase = new Proxy({} as SupabaseClient, {
   }
 }) as SupabaseClient
 
+// Cached server-side Supabase client (singleton pattern)
+let serverClientInstance: SupabaseClient | null = null
+
 // Server-side Supabase client (for API routes)
 export function createServerClient(): SupabaseClient {
+  // Return cached instance if available
+  if (serverClientInstance) {
+    return serverClientInstance
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Log environment variable status for debugging
-  console.log('Server Supabase client init:', {
-    hasUrl: !!supabaseUrl,
-    hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    willUseServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    nodeEnv: process.env.NODE_ENV
-  })
-
   if (!supabaseUrl) {
     const errorMsg = 'Missing NEXT_PUBLIC_SUPABASE_URL environment variable. ' +
-      'Please set it in Railway Variables → Variables tab and redeploy.'
+      'Please set it in Render Environment Variables and redeploy.'
     console.error(errorMsg)
     throw new Error(errorMsg)
   }
 
   if (!serviceRoleKey) {
     const errorMsg = 'Missing Supabase keys. ' +
-      'Please set SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY in Railway Variables → Variables tab and redeploy.'
+      'Please set SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY in Render Environment Variables and redeploy.'
     console.error(errorMsg, {
       hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -107,6 +106,9 @@ export function createServerClient(): SupabaseClient {
     throw new Error(errorMsg)
   }
 
-  return createClient(supabaseUrl, serviceRoleKey)
+  // Create and cache the client (only once per server instance)
+  console.log('✅ Creating server Supabase client (singleton)')
+  serverClientInstance = createClient(supabaseUrl, serviceRoleKey)
+  return serverClientInstance
 }
 

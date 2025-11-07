@@ -36,6 +36,9 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
   const [options, setOptions] = useState<ProcessingOptions>(defaultOptions)
   const [expandedPreview, setExpandedPreview] = useState<string | null>(null)
+  
+  // Progress smoothing - track last update time for interpolation
+  const progressTimestampsRef = useRef<Map<string, { progress: number, timestamp: number }>>(new Map())
 
   // Load options from localStorage on mount
   useEffect(() => {
@@ -118,7 +121,7 @@ export default function Home() {
   const channelsRef = useRef<Map<string, any>>(new Map())
   const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
-  // Polling fallback function
+  // Polling fallback function with progress smoothing
   const pollJobStatus = useCallback(async (serverJobId: string, clientJobId: string) => {
     try {
       const response = await fetch(`/api/jobs/${serverJobId}`)
@@ -136,6 +139,15 @@ export default function Home() {
                   clearInterval(interval)
                   pollingIntervalsRef.current.delete(clientJobId)
                 }
+                progressTimestampsRef.current.delete(clientJobId)
+              }
+              
+              // Progress smoothing: track when we receive updates
+              if (status === "processing" && job.progress) {
+                progressTimestampsRef.current.set(clientJobId, {
+                  progress: job.progress,
+                  timestamp: Date.now()
+                })
               }
               
               // Use the complete job data from API, keeping only client-side fields
@@ -225,7 +237,7 @@ export default function Home() {
     // Always start polling (works as primary method or backup)
     const pollInterval = setInterval(() => {
       pollJobStatus(serverJobId, clientJobId)
-    }, 2000) // Poll every 2 seconds
+    }, 500) // Poll every 500ms for responsive progress updates
     pollingIntervalsRef.current.set(clientJobId, pollInterval)
     
     // Also do an immediate poll to get current status
@@ -244,6 +256,8 @@ export default function Home() {
         clearInterval(interval)
       })
       pollingIntervalsRef.current.clear()
+      
+      progressTimestampsRef.current.clear()
     }
   }, [])
 
