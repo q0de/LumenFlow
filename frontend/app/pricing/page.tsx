@@ -8,16 +8,16 @@ import { createCheckoutSession } from "@/lib/stripe"
 import { LoginModal } from "@/components/auth/login-modal"
 import Link from "next/link"
 
-// This will be picked up by the metadata
-export const metadata = {
-  title: "Pricing — Green Screen Remover",
-  description: "Choose the perfect plan for your green screen removal needs. Free tier with 5 videos/day or Pro plan for unlimited processing. No watermark on Pro."
-}
-
 export default function PricingPage() {
-  // Set page title dynamically (since this is a client component)
+  // Set page title and meta description dynamically (client component)
   useEffect(() => {
     document.title = "Pricing — Green Screen Remover"
+    
+    // Update meta description
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Choose the perfect plan for your green screen removal needs. Free tier with 5 videos/day or Pro plan for unlimited processing. No watermark on Pro.')
+    }
   }, [])
   const { user, profile, loading } = useAuth()
   const [checkoutLoading, setCheckoutLoading] = useState(false)
