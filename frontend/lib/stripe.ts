@@ -28,19 +28,10 @@ export async function createCheckoutSession() {
       throw new Error(error.error || 'Failed to create checkout session')
     }
 
-    const { sessionId } = await response.json()
-    const stripe = await getStripe()
+    const { url } = await response.json()
     
-    if (!stripe) {
-      throw new Error('Stripe not initialized')
-    }
-
     // Redirect to Stripe Checkout
-    const { error } = await stripe.redirectToCheckout({ sessionId })
-    
-    if (error) {
-      throw error
-    }
+    window.location.href = url
   } catch (error: any) {
     console.error('Checkout error:', error)
     throw error
