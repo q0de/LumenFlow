@@ -36,10 +36,10 @@ const defaultOptions: ProcessingOptions = {
   chromaTolerance: 0.3, // Balanced default - adjust if green remains or person is removed
   processingSpeed: 4,
   backgroundColor: "#00FF00",
-  enableCodecOverride: true, // Enable codec selection by default
-  codec: "vp8", // VP8 for Unity compatibility (default)
-  enableResize: true, // Enable resize by default
-  outputWidth: 1354 // Unity optimized width (default)
+  enableCodecOverride: false, // Disabled by default - keeps original codec (VP9)
+  codec: "vp8", // VP8 for Unity compatibility (when enabled)
+  enableResize: false, // Disabled by default - keeps original dimensions
+  outputWidth: 1354 // Unity optimized width (when enabled)
 }
 
 export default function Home() {

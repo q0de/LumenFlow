@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Check, X, Sparkles } from "lucide-react"
 import { motion } from "framer-motion"
 import { useAuth } from "@/lib/auth-context"
@@ -8,7 +8,17 @@ import { createCheckoutSession } from "@/lib/stripe"
 import { LoginModal } from "@/components/auth/login-modal"
 import Link from "next/link"
 
+// This will be picked up by the metadata
+export const metadata = {
+  title: "Pricing — Green Screen Remover",
+  description: "Choose the perfect plan for your green screen removal needs. Free tier with 5 videos/day or Pro plan for unlimited processing. No watermark on Pro."
+}
+
 export default function PricingPage() {
+  // Set page title dynamically (since this is a client component)
+  useEffect(() => {
+    document.title = "Pricing — Green Screen Remover"
+  }, [])
   const { user, profile, loading } = useAuth()
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -40,13 +50,13 @@ export default function PricingPage() {
       description: "Perfect for trying out the tool",
       features: [
         { text: "5 videos per day", included: true },
-        { text: "LumenFlow watermark", included: true },
-        { text: "VP8 codec (Unity optimized)", included: true },
-        { text: "1354px output width", included: true },
-        { text: "Green screen removal", included: true },
+        { text: "Watermark on videos", included: true },
+        { text: "AI green screen removal", included: true },
+        { text: "Transparent WebM export", included: true },
+        { text: "VP8 & VP9 codec options", included: true },
+        { text: "Custom resolution", included: true },
         { text: "No watermark", included: false },
-        { text: "Custom resolution", included: false },
-        { text: "VP9 codec option", included: false },
+        { text: "50 videos per month", included: false },
         { text: "Priority processing", included: false },
       ],
       cta: "Get Started",
