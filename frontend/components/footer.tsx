@@ -5,31 +5,30 @@ export function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className="mt-auto bg-gradient-to-br from-slate-50 via-green-50/30 to-slate-50 dark:from-slate-900 dark:via-green-950/20 dark:to-slate-900 border-t border-green-200/50 dark:border-green-800/30">
-      <div className="container mx-auto px-4 py-12">
+    <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-slate-50/95 via-green-50/30 to-slate-50/95 dark:from-slate-900/95 dark:via-green-950/20 dark:to-slate-900/95 border-t border-green-200/50 dark:border-green-800/30 backdrop-blur-sm shadow-lg z-50">
+      <div className="container mx-auto px-4 py-3">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
           {/* Brand Column */}
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg">
-                <Video className="h-6 w-6 text-white" />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg">
+                <Video className="h-4 w-4 text-white" />
               </div>
-              <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
+              <h3 className="text-base font-bold bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
                 Green Screen Remover
               </h3>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-md leading-relaxed">
-              Professional AI-powered green screen removal tool designed for game developers. 
-              Convert your videos to transparent WebM format with alpha channel support—perfect for Unity and Unreal Engine.
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 max-w-md leading-relaxed">
+              AI-powered green screen removal for game developers. Convert videos to transparent WebM.
             </p>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
-                <Sparkles className="h-4 w-4 text-green-500" />
+            <div className="flex gap-3">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-500">
+                <Sparkles className="h-3 w-3 text-green-500" />
                 <span>AI-Powered</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
-                <Shield className="h-4 w-4 text-green-500" />
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-500">
+                <Shield className="h-3 w-3 text-green-500" />
                 <span>Secure</span>
               </div>
             </div>
@@ -37,12 +36,12 @@ export function Footer() {
 
           {/* Product Links */}
           <div>
-            <h4 className="font-bold text-slate-900 dark:text-slate-100 mb-4 text-sm uppercase tracking-wider">Product</h4>
-            <ul className="space-y-3">
+            <h4 className="font-bold text-slate-900 dark:text-slate-100 mb-2 text-xs uppercase tracking-wider">Product</h4>
+            <ul className="space-y-1.5">
               <li>
                 <Link 
                   href="/" 
-                  className="text-sm text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors inline-flex items-center group"
+                  className="text-xs text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors inline-flex items-center group"
                 >
                   <span className="group-hover:translate-x-1 transition-transform">Home</span>
                 </Link>
@@ -60,8 +59,8 @@ export function Footer() {
 
           {/* Legal Links */}
           <div>
-            <h4 className="font-bold text-slate-900 dark:text-slate-100 mb-4 text-sm uppercase tracking-wider">Legal</h4>
-            <ul className="space-y-3">
+            <h4 className="font-bold text-slate-900 dark:text-slate-100 mb-2 text-xs uppercase tracking-wider">Legal</h4>
+            <ul className="space-y-1.5">
               <li>
                 <Link 
                   href="/privacy" 
@@ -91,23 +90,23 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-green-200/50 dark:border-green-800/30">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-slate-500 dark:text-slate-500">
+        <div className="pt-3 border-t border-green-200/50 dark:border-green-800/30">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-2">
+            <p className="text-xs text-slate-500 dark:text-slate-500">
               © {currentYear} Green Screen Remover. All rights reserved.
             </p>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <a 
                 href="https://twitter.com/CRYPT0" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-sm text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                className="text-xs text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
               >
                 Twitter
               </a>
               <a 
                 href="mailto:support@greenscreenremover.com"
-                className="text-sm text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                className="text-xs text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
               >
                 Contact
               </a>
