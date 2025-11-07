@@ -192,8 +192,8 @@ async function processVideo(
           // Calculate progress (20% to 95% - leave 5% for finalization)
           const progress = Math.min(20 + Math.floor((currentTime / duration) * 75), 95)
           
-          // Only update if progress increased significantly (avoid spam)
-          if (progress > lastProgress + 2) {
+          // Update every 1% for smooth progress bar (was 2%)
+          if (progress > lastProgress) {
             lastProgress = progress
             setJob(jobId, { status: "processing", progress }).catch(err => {
               console.error('Error updating progress:', err)
