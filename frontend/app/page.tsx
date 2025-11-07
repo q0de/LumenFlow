@@ -394,10 +394,10 @@ export default function Home() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              🎬 LumenFlow
+              🎬 Green Screen Remover
             </h1>
             <p className="text-xl text-slate-600 dark:text-slate-400">
-              Transparent Actor Video Pipeline
+              AI-Powered Video Background Removal
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-500 mt-2">
               AI-generated green-screen → Alpha WEBM for Unity

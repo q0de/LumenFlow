@@ -28,7 +28,7 @@ export function UpgradePrompt({
     },
     no_watermark: {
       title: "Remove Watermark",
-      description: "Upgrade to Pro to remove the LumenFlow watermark from your videos.",
+      description: "Upgrade to Pro to remove the GreenScreenRemover.com watermark from your videos.",
     },
   }
 
