@@ -120,6 +120,7 @@ export default function Home() {
   // Use Supabase real-time subscriptions with polling fallback
   const channelsRef = useRef<Map<string, any>>(new Map())
   const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const extraPollingRef = useRef<Map<string, boolean>>(new Map())
 
   // Polling fallback function with progress smoothing
   const pollJobStatus = useCallback(async (serverJobId: string, clientJobId: string) => {
@@ -146,16 +147,6 @@ export default function Home() {
             if (j.id === clientJobId) {
               const status = job.status as ProcessingJob['status']
               
-              if (status === "completed" || status === "error") {
-                // Stop polling when done
-                const interval = pollingIntervalsRef.current.get(clientJobId)
-                if (interval) {
-                  clearInterval(interval)
-                  pollingIntervalsRef.current.delete(clientJobId)
-                }
-                progressTimestampsRef.current.delete(clientJobId)
-              }
-              
               // Progress smoothing: track when we receive updates
               if (status === "processing" && job.progress) {
                 progressTimestampsRef.current.set(clientJobId, {
@@ -180,6 +171,35 @@ export default function Home() {
                   hasDownloadUrl: !!updatedJob.downloadUrl,
                   downloadUrl: updatedJob.downloadUrl
                 })
+                
+                // If we have downloadUrl, we can stop polling after a few more checks
+                // If we don't have it yet, keep polling to get it
+                if (!extraPollingRef.current.get(clientJobId)) {
+                  extraPollingRef.current.set(clientJobId, true)
+                  console.log(`🔄 Will do 3 more polls to ensure complete data`)
+                  
+                  // After 5 more polls (1.5 seconds), stop
+                  setTimeout(() => {
+                    const mainInterval = pollingIntervalsRef.current.get(clientJobId)
+                    if (mainInterval) {
+                      clearInterval(mainInterval)
+                      pollingIntervalsRef.current.delete(clientJobId)
+                    }
+                    progressTimestampsRef.current.delete(clientJobId)
+                    extraPollingRef.current.delete(clientJobId)
+                    console.log(`🛑 Stopped polling for job ${clientJobId}`)
+                  }, 1500) // 5 more polls at 300ms each
+                }
+              }
+              
+              if (status === "error") {
+                // Stop polling immediately on error
+                const interval = pollingIntervalsRef.current.get(clientJobId)
+                if (interval) {
+                  clearInterval(interval)
+                  pollingIntervalsRef.current.delete(clientJobId)
+                }
+                progressTimestampsRef.current.delete(clientJobId)
               }
               
               return updatedJob
@@ -263,7 +283,7 @@ export default function Home() {
     // Always start polling (works as primary method or backup)
     const pollInterval = setInterval(() => {
       pollJobStatus(serverJobId, clientJobId)
-    }, 500) // Poll every 500ms for responsive progress updates
+    }, 300) // Poll every 300ms for highly responsive progress updates
     pollingIntervalsRef.current.set(clientJobId, pollInterval)
     
     // Also do an immediate poll to get current status
@@ -284,6 +304,7 @@ export default function Home() {
       pollingIntervalsRef.current.clear()
       
       progressTimestampsRef.current.clear()
+      extraPollingRef.current.clear()
     }
   }, [])
 
