@@ -1,12 +1,14 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { AuthProvider } from "@/lib/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "LumenFlow — Transparent Actor Video Pipeline",
-  description: "Automate AI-generated green-screen videos into alpha-enabled WEBM files for Unity",
+  title: "LumenFlow — Remove Green Screen from Video Online | AI Chroma Key Tool",
+  description: "Free online green screen removal tool. Convert videos to transparent WebM with alpha channel. Perfect for Unity games. AI-powered chroma key technology.",
+  keywords: "remove green screen from video, green screen removal online, ai green screen removal, transparent video converter, unity transparent video, webm alpha channel, chroma key online",
 }
 
 export default function RootLayout({
@@ -16,7 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }
