@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
             stripe_subscription_id: subscription.id,
             stripe_price_id: subscription.items.data[0].price.id,
             status: subscription.status,
-            current_period_start: new Date(subscription.currentPeriodStart * 1000).toISOString(),
-            current_period_end: new Date(subscription.currentPeriodEnd * 1000).toISOString(),
-            cancel_at_period_end: subscription.cancelAtPeriodEnd,
+            current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+            cancel_at_period_end: (subscription as any).cancel_at_period_end,
           }, {
             onConflict: 'stripe_subscription_id'
           })
