@@ -130,27 +130,26 @@ async function processVideo(
       
       // Use chromakey filter - creates alpha channel automatically
       // chromakey=color:similarity:blend
+      // Resize to 1354px width (Unity optimized)
       // Then convert to yuva420p format to ensure alpha is preserved
-      const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},format=yuva420p`
+      const keyFilter = `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend},scale=1354:-1,format=yuva420p`
       
       // Build FFmpeg command with progress reporting
+      // Using VP8 (libvpx) instead of VP9 for better Unity compatibility
       // Optimizations for speed:
       // - -deadline realtime: prioritize speed over quality
       // - -cpu-used: higher = faster (already using speed parameter)
-      // - -row-mt 1: multi-threaded row processing
       const ffmpegArgs = [
         '-i', inputPath,
         '-vf', keyFilter,
-        '-c:v', 'libvpx-vp9',
+        '-c:v', 'libvpx', // VP8 for Unity compatibility
         '-pix_fmt', 'yuva420p',
         '-auto-alt-ref', '0',
         '-lag-in-frames', '0',
         '-deadline', 'realtime', // Prioritize speed
         '-crf', crf.toString(),
         '-b:v', '0',
-        '-speed', speed.toString(),
-        '-cpu-used', speed.toString(), // Additional speed boost
-        '-row-mt', '1',
+        '-cpu-used', speed.toString(),
         '-threads', '8',
         '-an', // No audio
         '-y', // Overwrite output
