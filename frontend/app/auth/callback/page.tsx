@@ -24,34 +24,34 @@ export default function AuthCallbackPage() {
         console.log('🔑 Refresh token length:', refreshToken?.length)
 
         if (accessToken && refreshToken) {
-          console.log('🔄 Storing session tokens...')
+          console.log('🔄 Setting session with Supabase SDK...')
           
           try {
-            // Manually store the session in localStorage (Supabase format)
-            // This is what Supabase uses internally for session persistence
-            const sessionData = {
+            // Use Supabase SDK but don't await - just trigger it and redirect
+            // The session will be available on next page load
+            supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
-              expires_in: 3600,
-              token_type: 'bearer',
-              user: null // Will be populated by Supabase on next getSession call
-            }
+            }).then(({ data, error }) => {
+              if (error) {
+                console.error('❌ Error setting session (async):', error)
+              } else {
+                console.log('✅ Session set successfully (async):', data.session?.user?.email)
+              }
+            })
             
-            // Store in the format Supabase expects
-            const storageKey = `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`
-            localStorage.setItem(storageKey, JSON.stringify(sessionData))
-            console.log('✅ Session tokens stored in localStorage')
+            // Don't wait for setSession - just redirect immediately
+            // The session will be picked up by AuthContext on next page
+            console.log('✅ Redirecting to homepage (session will load there)...')
             
-            // Show success toast
-            toast.success('Welcome back!', { description: 'Redirecting...' })
+            // Small delay to let setSession start
+            setTimeout(() => {
+              window.location.href = '/'
+            }, 500)
             
-            // Hard redirect to trigger Supabase to pick up the session
-            console.log('✅ Redirecting to homepage...')
-            window.location.href = '/'
             return
           } catch (err: any) {
-            console.error('❌ Exception storing session:', err)
-            toast.error('Login failed', { description: err.message || 'Session setup failed' })
+            console.error('❌ Exception in session flow:', err)
             router.push('/')
             return
           }
