@@ -60,9 +60,20 @@ export default function AuthCallbackPage() {
         // Check for code param (PKCE flow)
         const urlParams = new URLSearchParams(window.location.search)
         const code = urlParams.get('code')
+        
+        console.log('🔍 Checking for PKCE code:', { hasCode: !!code, code: code?.substring(0, 10) + '...' })
 
         if (code) {
+          console.log('🔄 Exchanging PKCE code for session...')
+          
           const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          
+          console.log('🔄 exchangeCodeForSession result:', { 
+            hasData: !!data, 
+            hasSession: !!data?.session,
+            hasUser: !!data?.session?.user,
+            error: error?.message 
+          })
           
           if (error) {
             console.error('❌ Error exchanging code for session:', error)
@@ -71,9 +82,10 @@ export default function AuthCallbackPage() {
             return
           }
           
-          console.log('✅ Code exchanged for session successfully')
-          // Don't show toast here - let AuthContext handle it on SIGNED_IN event
+          console.log('✅ Code exchanged for session successfully:', data.session?.user?.email)
+          console.log('✅ Redirecting to homepage...')
           
+          // Use router.push for smoother transition
           router.push('/')
           return
         }
