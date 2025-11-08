@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       ],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin')}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin')}/pricing`,
+      locale: "auto", // Let Stripe automatically detect the user's locale
       metadata: {
         supabase_user_id: user.id,
       },
