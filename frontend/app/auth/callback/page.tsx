@@ -11,10 +11,15 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log('🔄 OAuth callback started')
+        console.log('📍 Current URL:', window.location.href)
+        
         // Check for hash fragment tokens (implicit flow)
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
+        
+        console.log('🔑 Tokens found:', { hasAccess: !!accessToken, hasRefresh: !!refreshToken })
 
         if (accessToken && refreshToken) {
           // Set the session from hash tokens
