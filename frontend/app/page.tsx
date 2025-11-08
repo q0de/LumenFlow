@@ -65,20 +65,20 @@ export default function Home() {
   const [usageInfo, setUsageInfo] = useState<{used: number, limit: number} | null>(null)
   const [recentVideos, setRecentVideos] = useState<RecentVideo[]>([])
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Progress smoothing - track last update time for interpolation
   const progressTimestampsRef = useRef<Map<string, { progress: number, timestamp: number }>>(new Map())
 
-  // Initialize dark mode from localStorage
+  // Initialize dark mode from localStorage (default to light)
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
+    const shouldBeDark = savedTheme === 'dark' // Only dark if explicitly set
     
     setIsDarkMode(shouldBeDark)
     if (shouldBeDark) {
       document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
     }
   }, [])
 
@@ -104,7 +104,7 @@ export default function Home() {
       // Ctrl+U to open upload dialog
       if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
         e.preventDefault()
-        fileInputRef.current?.click()
+        open()
         toast.info('Upload dialog opened', { description: 'Select your video file' })
       }
       
@@ -124,7 +124,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isDarkMode])
+  }, [isDarkMode, open, toggleDarkMode])
 
   // Load options from localStorage on mount
   useEffect(() => {
@@ -514,12 +514,14 @@ export default function Home() {
     }
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
       "video/*": [".mp4", ".mov", ".avi"],
     },
     maxSize: 100 * 1024 * 1024, // 100MB
+    noClick: false, // Allow clicking
+    noKeyboard: false
   })
 
   // Copy download link
@@ -862,7 +864,7 @@ export default function Home() {
               }
             `}
           >
-            <input {...getInputProps()} ref={fileInputRef} />
+            <input {...getInputProps()} />
             
             {/* Animated upload icon on drag */}
             <AnimatePresence>

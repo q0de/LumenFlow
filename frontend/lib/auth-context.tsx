@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import { User, Session } from "@supabase/supabase-js"
 import { supabase } from "./supabase"
+import { toast } from "sonner"
 
 interface Profile {
   id: string
@@ -60,13 +61,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
+        
         if (session?.user) {
           await fetchProfile(session.user.id)
+          
+          // Show success toast on sign in
+          if (event === 'SIGNED_IN') {
+            toast.success('Welcome back!', { 
+              description: 'You have successfully signed in' 
+            })
+          }
         } else {
           setProfile(null)
+          
+          // Show sign out toast
+          if (event === 'SIGNED_OUT') {
+            toast.success('Signed out successfully')
+          }
         }
         setLoading(false)
       }
