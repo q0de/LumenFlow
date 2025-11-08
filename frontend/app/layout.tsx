@@ -270,17 +270,16 @@ export default function RootLayout({
         
         {/* Plausible Analytics (Privacy-friendly) */}
         <script
-          async
-          src="https://plausible.io/js/pa-NyxT-_2LqKOznJSsSSYUI.js"
+          defer
+          data-domain="greenscreenremover.com"
+          src="https://plausible.io/js/script.js"
         />
+        
+        {/* Ahrefs Analytics */}
         <script
-          id="plausible-analytics"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-              plausible.init()
-            `,
-          }}
+          async
+          data-key="QUm7qIRFJ1RBI9z5eyt1uQ"
+          src="https://analytics.ahrefs.com/analytics.js"
         />
         
         {/* Preconnect to external domains for performance */}
