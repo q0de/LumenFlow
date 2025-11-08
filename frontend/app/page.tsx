@@ -392,11 +392,21 @@ export default function Home() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
+            className="relative"
           >
-            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              🎬 Green Screen Remover
-            </h1>
-            <p className="text-xl text-slate-600 dark:text-slate-400">
+            {/* Title with Icon */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              {/* Logo Icon - same as footer */}
+              <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
+                <Video className="h-8 w-8 text-white" />
+              </div>
+              
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                Green Screen Remover
+              </h1>
+            </div>
+
+            <p className="text-xl text-slate-600 dark:text-slate-400 mt-4">
               AI-Powered Video Background Removal
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-500 mt-2">

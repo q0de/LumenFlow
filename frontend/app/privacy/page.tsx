@@ -8,12 +8,20 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <HeaderNav />
       
       <div className="container mx-auto px-4 py-12 max-w-4xl">
-        <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">Privacy Policy</h1>
-        <p className="text-slate-600 dark:text-slate-400 mb-8">Last updated: November 7, 2025</p>
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            Privacy Policy
+          </h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400">Last updated: November 7, 2025</p>
+        </div>
+
+        {/* Content Card */}
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 md:p-12 border border-slate-200/50 dark:border-slate-700/50">
 
         <div className="prose prose-slate dark:prose-invert max-w-none">
           <section className="mb-8">
@@ -171,10 +179,13 @@ export default function PrivacyPage() {
           </section>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-700">
-          <Link href="/" className="text-green-600 dark:text-green-400 hover:underline">
-            ← Back to Home
+        {/* Back to Home */}
+        <div className="mt-8 pt-6 border-t border-slate-300 dark:border-slate-600">
+          <Link href="/" className="inline-flex items-center gap-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium transition-colors">
+            <span>←</span>
+            <span>Back to Home</span>
           </Link>
+        </div>
         </div>
       </div>
     </div>

@@ -268,6 +268,21 @@ export default function RootLayout({
           </>
         )}
         
+        {/* Plausible Analytics (Privacy-friendly) */}
+        <script
+          async
+          src="https://plausible.io/js/pa-NyxT-_2LqKOznJSsSSYUI.js"
+        />
+        <script
+          id="plausible-analytics"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+              plausible.init()
+            `,
+          }}
+        />
+        
         {/* Preconnect to external domains for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -275,7 +290,7 @@ export default function RootLayout({
         {/* DNS Prefetch */}
         <link rel="dns-prefetch" href="https://greenscreenremover.com" />
       </head>
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
+      <body className={`${inter.className} flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900`}>
         <AuthProvider>
           <main className="flex-1 pb-48">
             {children}

@@ -20,8 +20,10 @@ export function HeaderNav() {
     }
   }
 
-  // Only show if payments are enabled
-  if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS !== 'true') {
+  // Only show if payments are enabled (or in development)
+  const isPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true' || process.env.NODE_ENV === 'development'
+  
+  if (!isPaymentsEnabled) {
     return null
   }
 
