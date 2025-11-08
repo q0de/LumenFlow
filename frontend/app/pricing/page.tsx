@@ -24,6 +24,17 @@ export default function PricingPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Pricing Page State:', {
+      hasUser: !!user,
+      userEmail: user?.email,
+      profileTier: profile?.subscription_tier,
+      loading,
+      checkoutLoading
+    })
+  }, [user, profile, loading, checkoutLoading])
+
   const handleUpgrade = async () => {
     setError(null)
 
@@ -172,6 +183,7 @@ export default function PricingPage() {
               {/* CTA Button */}
               <button
                 onClick={() => {
+                  console.log('🔘 Button clicked:', tier.name, { user: !!user, profile: !!profile, loading, checkoutLoading })
                   if (tier.name === "Pro") {
                     handleUpgrade()
                   } else {
@@ -185,11 +197,11 @@ export default function PricingPage() {
                 }
                 className={`w-full py-3 px-6 rounded-lg font-medium transition-colors ${
                   tier.popular
-                    ? "bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400"
+                    ? "bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400 disabled:cursor-not-allowed"
                     : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100"
                 }`}
               >
-                {checkoutLoading && tier.name === "Pro"
+                {loading ? "Loading..." : checkoutLoading && tier.name === "Pro"
                   ? "Loading..."
                   : tier.cta}
               </button>
