@@ -93,11 +93,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         
+        // If there's an auth error (invalid refresh token), clear the session
+        if (error) {
+          console.warn('⚠️ Session error, clearing invalid session:', error.message)
+          await supabase.auth.signOut({ scope: 'local' }) // Clear local storage only
+          setSession(null)
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+          return
+        }
+        
         console.log('🔑 Initial session:', { 
           hasSession: !!session, 
           hasUser: !!session?.user,
-          email: session?.user?.email,
-          error: error?.message 
+          email: session?.user?.email
         })
         
         setSession(session)
@@ -115,6 +125,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('❌ Error initializing session:', err)
+        // Clear potentially corrupted session
+        await supabase.auth.signOut({ scope: 'local' })
+        setSession(null)
+        setUser(null)
+        setProfile(null)
       } finally {
         setLoading(false)
       }
