@@ -5,8 +5,29 @@ const nextConfig = {
       bodySizeLimit: '100mb',
     },
   },
-  // Railway sets PORT environment variable automatically
-  // Next.js will use it by default
+  // Optimize for memory-constrained environments
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Reduce build memory usage
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          commons: {
+            name: 'commons',
+            chunks: 'all',
+            minChunks: 2,
+          },
+        },
+      }
+    }
+    return config
+  },
 }
 
 module.exports = nextConfig
