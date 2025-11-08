@@ -70,7 +70,9 @@ export async function openCustomerPortal() {
       throw new Error('Not authenticated')
     }
     
-    const response = await fetch('/api/billing-portal', {
+    // Add cache-busting timestamp to bypass Cloudflare cache
+    const timestamp = Date.now()
+    const response = await fetch(`/api/billing-portal?t=${timestamp}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
