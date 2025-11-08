@@ -407,10 +407,26 @@ export default function Home() {
             </div>
 
             <p className="text-xl text-slate-600 dark:text-slate-400 mt-4">
-              AI-Powered Video Background Removal
+              <span 
+                className="relative inline-block px-2 py-0.5 border-2 border-dashed border-slate-400 dark:border-slate-500 rounded font-semibold"
+                style={{
+                  background: `
+                    repeating-linear-gradient(
+                      45deg,
+                      transparent,
+                      transparent 5px,
+                      rgba(156, 163, 175, 0.15) 5px,
+                      rgba(156, 163, 175, 0.15) 10px
+                    )
+                  `,
+                  animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                }}
+              >
+                Remove
+              </span> Green Screens from Your Videos
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-500 mt-2">
-              AI-generated green-screen → Alpha WEBM for Unity
+              Fast, automatic background removal with transparent WebM export
             </p>
           </motion.div>
         </div>
