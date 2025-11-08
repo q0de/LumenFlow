@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://greenscreenremover.com'
+  // Use non-www version consistently for canonical URLs
+  const baseUrl = 'https://greenscreenremover.com'
   
   return [
     {
@@ -17,10 +18,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/success`,
+      url: `${baseUrl}/privacy`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
-      priority: 0.3,
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/cookies`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.4,
     },
   ]
 }

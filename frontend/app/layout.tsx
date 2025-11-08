@@ -117,20 +117,18 @@ export default function RootLayout({
   // Enhanced structured data for maximum SEO
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebApplication',
+    '@type': 'SoftwareApplication',
     name: 'Green Screen Remover',
     alternateName: 'AI Green Screen Removal Tool',
     url: 'https://greenscreenremover.com',
     applicationCategory: 'MultimediaApplication',
-    applicationSubCategory: 'Video Editor',
-    operatingSystem: 'Any (Web Browser)',
-    browserRequirements: 'Requires JavaScript. Requires HTML5.',
+    operatingSystem: 'Web Browser',
+    browserRequirements: 'Requires JavaScript and HTML5',
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
-      priceValidUntil: '2025-12-31',
     },
     aggregateRating: {
       '@type': 'AggregateRating',
@@ -140,33 +138,14 @@ export default function RootLayout({
       worstRating: '1',
     },
     description: 'Remove green screen from videos online for free. AI-powered chroma key removal with transparent WebM export. Perfect for Unity, Unreal Engine, and game development. No software installation required.',
-    featureList: [
-      'AI-powered green screen removal',
-      'Transparent WebM video export',
-      'VP8 and VP9 codec support',
-      'Unity and Unreal Engine compatible',
-      'Alpha channel preservation',
-      'Adjustable chroma key tolerance',
-      'Real-time progress tracking',
-      'No watermark on free tier'
-    ],
     screenshot: 'https://greenscreenremover.com/opengraph-image',
     author: {
       '@type': 'Organization',
       name: 'Green Screen Remover',
       url: 'https://greenscreenremover.com'
     },
-    creator: {
-      '@type': 'Organization',
-      name: 'Green Screen Remover',
-      url: 'https://greenscreenremover.com'
-    },
     datePublished: '2025-01-01',
-    dateModified: new Date().toISOString().split('T')[0],
     inLanguage: 'en-US',
-    isAccessibleForFree: true,
-    accessMode: ['visual', 'textual'],
-    accessModeSufficient: ['visual', 'textual']
   }
 
   // Organization structured data
