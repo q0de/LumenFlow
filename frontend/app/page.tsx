@@ -101,13 +101,6 @@ export default function Home() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Ctrl+U to open upload dialog
-      if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
-        e.preventDefault()
-        open()
-        toast.info('Upload dialog opened', { description: 'Select your video file' })
-      }
-      
       // Escape to close modals
       if (e.key === 'Escape') {
         setShowLogin(false)
@@ -124,7 +117,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isDarkMode, open, toggleDarkMode])
+  }, [isDarkMode, toggleDarkMode])
 
   // Load options from localStorage on mount
   useEffect(() => {
@@ -613,10 +606,6 @@ export default function Home() {
             
             {/* Keyboard shortcuts hint */}
             <div className="mt-4 flex items-center justify-center gap-4 text-xs text-slate-400">
-              <div className="flex items-center gap-1">
-                <kbd className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded">Ctrl+U</kbd>
-                <span>Upload</span>
-              </div>
               <div className="flex items-center gap-1">
                 <kbd className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded">Ctrl+D</kbd>
                 <span>Dark Mode</span>
