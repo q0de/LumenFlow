@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const baseFilename = filename.replace(/\.[^/.]+$/, "")
 
     // Ensure directories exist
-    // On Render/Railway: use persistent disk (default /data, configurable via STORAGE_PATH)
+    // On Render: use persistent disk (default /data, configurable via STORAGE_PATH)
     // On local: use ../input, ../keyed, ../webm
     const isProduction = process.env.NODE_ENV === "production"
     const baseDir = isProduction ? (process.env.STORAGE_PATH || "/data") : join(process.cwd(), "..")

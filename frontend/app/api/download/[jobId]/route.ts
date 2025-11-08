@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { jobId } = params
-    // On Railway/Docker: use persistent disk (same as upload, default /data)
+    // On Render: use persistent disk (same as upload, default /data)
     // On local: use ../webm
     const isProduction = process.env.NODE_ENV === "production"
     const baseDir = isProduction ? (process.env.STORAGE_PATH || "/data") : join(process.cwd(), "..")
