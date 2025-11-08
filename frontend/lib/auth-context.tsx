@@ -5,6 +5,24 @@ import { User, Session } from "@supabase/supabase-js"
 import { supabase } from "./supabase"
 import { toast } from "sonner"
 
+function withTimeout<T>(promiseLike: Promise<T> | PromiseLike<T>, timeoutMs = 4000): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Profile fetch timed out'))
+    }, timeoutMs)
+  })
+
+  const promise = Promise.resolve(promiseLike)
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  })
+}
+
 interface Profile {
   id: string
   email: string
@@ -32,14 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userEmail?: string) => {
     try {
       console.log('🔄 Fetching profile for user:', userId)
-      const { data, error } = await supabase
+      const { data, error } = await withTimeout(
+        supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
+      )
 
       if (error) {
         console.error('❌ Profile fetch error:', error)
@@ -57,14 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set a default profile if fetch fails
       setProfile({
         id: userId,
-        email: null,
+        email: userEmail || 'unknown@example.com',
         full_name: null,
         subscription_tier: 'free',
-        subscription_status: null,
-        stripe_customer_id: null,
-        stripe_subscription_id: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        stripe_customer_id: null
       })
     }
   }
@@ -86,17 +102,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setSession(session)
         setUser(session?.user ?? null)
-        
+
         if (session?.user) {
           console.log('✅ User found, fetching profile...')
-          await fetchProfile(session.user.id)
+          // Fetch profile but don't let loading depend on it (Supabase can hang)
+          fetchProfile(session.user.id, session.user.email)
+            .catch((error) => {
+              console.error('❌ Failed to fetch profile during init (async):', error)
+            })
         } else {
           console.log('⚠️ No session found')
         }
-        
-        setLoading(false)
       } catch (err) {
         console.error('❌ Error initializing session:', err)
+      } finally {
         setLoading(false)
       }
     }
@@ -108,15 +127,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.email)
         
+        // Update state immediately
         setSession(session)
         setUser(session?.user ?? null)
+        setLoading(false) // Set loading false IMMEDIATELY after user state
         
+        console.log('✅ Auth state updated:', { 
+          hasUser: !!session?.user, 
+          email: session?.user?.email,
+          loading: false 
+        })
+
         if (session?.user) {
-          try {
-            await fetchProfile(session.user.id)
-          } catch (error) {
-            console.error('❌ Failed to fetch profile in auth change:', error)
-          }
+          // Fetch profile asynchronously (don't block UI)
+          fetchProfile(session.user.id, session.user.email)
+            .catch((error) => {
+              console.error('❌ Failed to fetch profile in auth change (async):', error)
+            })
           
           // Show welcome toast on sign in
           if (event === 'SIGNED_IN') {
@@ -130,10 +157,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             toast.success('Signed out successfully')
           }
         }
-        
-        // Always set loading to false, even if profile fetch failed
-        console.log('✅ Auth loading complete, setting loading = false')
-        setLoading(false)
       }
     )
 
@@ -195,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfile(user.id)
+      await fetchProfile(user.id, user.email)
     }
   }
 
