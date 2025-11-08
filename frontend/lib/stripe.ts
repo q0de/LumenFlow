@@ -63,10 +63,18 @@ export async function createCheckoutSession() {
 
 export async function openCustomerPortal() {
   try {
+    // Get current session token
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.access_token) {
+      throw new Error('Not authenticated')
+    }
+    
     const response = await fetch('/api/stripe/portal', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
     })
 
