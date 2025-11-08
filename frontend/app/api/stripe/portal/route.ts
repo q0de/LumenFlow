@@ -8,6 +8,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
   apiVersion: "2025-10-29.clover",
 })
 
+export async function GET() {
+  return NextResponse.json({ message: "Portal route is working!" })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
