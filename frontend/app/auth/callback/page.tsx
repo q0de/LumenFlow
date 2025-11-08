@@ -66,7 +66,14 @@ export default function AuthCallbackPage() {
         if (code) {
           console.log('🔄 Exchanging PKCE code for session...')
           
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          // Exchange code with timeout (don't wait forever)
+          const exchangePromise = supabase.auth.exchangeCodeForSession(code)
+          const timeoutPromise = new Promise((resolve) => 
+            setTimeout(() => resolve({ data: null, error: { message: 'Timeout - redirecting anyway' } }), 3000)
+          )
+          
+          const result = await Promise.race([exchangePromise, timeoutPromise]) as any
+          const { data, error } = result
           
           console.log('🔄 exchangeCodeForSession result:', { 
             hasData: !!data, 
@@ -75,17 +82,20 @@ export default function AuthCallbackPage() {
             error: error?.message 
           })
           
-          if (error) {
+          if (error && !error.message.includes('Timeout')) {
             console.error('❌ Error exchanging code for session:', error)
             toast.error('Login failed', { description: error.message })
             router.push('/')
             return
           }
           
-          console.log('✅ Code exchanged for session successfully:', data.session?.user?.email)
-          console.log('✅ Redirecting to homepage...')
+          if (error?.message.includes('Timeout')) {
+            console.log('⚠️ Exchange timed out but session might be set - redirecting...')
+          } else {
+            console.log('✅ Code exchanged for session successfully:', data.session?.user?.email)
+          }
           
-          // Use router.push for smoother transition
+          console.log('✅ Redirecting to homepage...')
           router.push('/')
           return
         }
