@@ -167,9 +167,14 @@ export default function Home() {
           used: data.videosProcessed,
           limit: data.videosLimit
         })
+      } else if (response.status === 401) {
+        // User not authenticated on server-side, this is okay
+        // Profile data loaded via client-side auth
+        console.log('ℹ️ Usage API requires server-side session (optional)')
       }
     } catch (error) {
-      console.error('Failed to fetch usage:', error)
+      // Silently fail - usage info is optional
+      console.log('ℹ️ Usage check skipped')
     }
   }
 
