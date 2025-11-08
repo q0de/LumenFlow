@@ -26,28 +26,48 @@ export default function AuthCallbackPage() {
         if (accessToken && refreshToken) {
           console.log('🔄 Calling supabase.auth.setSession...')
           
-          // Set the session from hash tokens
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          })
+          try {
+            // Set the session from hash tokens with timeout
+            const sessionPromise = supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            })
 
-          console.log('🔄 setSession returned:', { data: !!data, error: !!error })
+            // Add 10 second timeout
+            const timeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('setSession timeout after 10s')), 10000)
+            )
 
-          if (error) {
-            console.error('❌ Error setting session:', error)
-            toast.error('Login failed', { description: error.message })
+            const { data, error } = await Promise.race([sessionPromise, timeoutPromise])
+
+            console.log('🔄 setSession returned:', { 
+              hasData: !!data, 
+              hasError: !!error,
+              hasSession: !!data?.session,
+              hasUser: !!data?.session?.user 
+            })
+
+            if (error) {
+              console.error('❌ Error setting session:', error)
+              toast.error('Login failed', { description: error.message })
+              router.push('/')
+              return
+            }
+            
+            console.log('✅ Session set successfully:', data.session?.user?.email)
+            console.log('✅ User ID:', data.session?.user?.id)
+            console.log('✅ Redirecting to homepage...')
+            // Don't show toast here - let AuthContext handle it on SIGNED_IN event
+            
+            // Redirect using Next.js router (no hard reload)
+            router.push('/')
+            return
+          } catch (err: any) {
+            console.error('❌ Exception in setSession:', err)
+            toast.error('Login failed', { description: err.message || 'Session setup failed' })
             router.push('/')
             return
           }
-          
-          console.log('✅ Session set successfully:', data.session?.user?.email)
-          console.log('✅ Redirecting to homepage...')
-          // Don't show toast here - let AuthContext handle it on SIGNED_IN event
-          
-          // Redirect using Next.js router (no hard reload)
-          router.push('/')
-          return
         }
 
         // Check for code param (PKCE flow)
