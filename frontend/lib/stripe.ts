@@ -70,7 +70,7 @@ export async function openCustomerPortal() {
       throw new Error('Not authenticated')
     }
     
-    const response = await fetch('/api/stripe/portal', {
+    const response = await fetch('/api/stripe/billing-portal', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
