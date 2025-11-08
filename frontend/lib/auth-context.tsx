@@ -34,17 +34,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('🔄 Fetching profile for user:', userId)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Profile fetch error:', error)
+        // If profile doesn't exist, create a default one
+        if (error.code === 'PGRST116') {
+          console.log('⚠️ Profile not found, user needs to be created in database')
+        }
+        throw error
+      }
+      
+      console.log('✅ Profile loaded:', data?.subscription_tier)
       setProfile(data)
     } catch (error) {
-      console.error('Error fetching profile:', error)
-      setProfile(null)
+      console.error('❌ Error fetching profile:', error)
+      // Set a default profile if fetch fails
+      setProfile({
+        id: userId,
+        email: null,
+        full_name: null,
+        subscription_tier: 'free',
+        subscription_status: null,
+        stripe_customer_id: null,
+        stripe_subscription_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
     }
   }
 
@@ -91,7 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          await fetchProfile(session.user.id)
+          try {
+            await fetchProfile(session.user.id)
+          } catch (error) {
+            console.error('❌ Failed to fetch profile in auth change:', error)
+          }
           
           // Show welcome toast on sign in
           if (event === 'SIGNED_IN') {
@@ -105,6 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             toast.success('Signed out successfully')
           }
         }
+        
+        // Always set loading to false, even if profile fetch failed
+        console.log('✅ Auth loading complete, setting loading = false')
         setLoading(false)
       }
     )
