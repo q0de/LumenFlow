@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
-import { createServerClient } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
   apiVersion: "2025-10-29.clover",
@@ -8,7 +9,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    // Create Supabase client with cookies for authentication
+    const cookieStore = cookies()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          storage: {
+            getItem: (key: string) => {
+              const cookie = cookieStore.get(key)
+              return cookie?.value
+            },
+            setItem: () => {},
+            removeItem: () => {},
+          },
+        },
+      }
+    )
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
