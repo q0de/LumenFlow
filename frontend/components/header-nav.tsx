@@ -100,17 +100,11 @@ export function HeaderNav() {
                   )}
 
                   <button
-                    onClick={async () => {
-                      try {
-                        console.log('🔄 Signing out...')
-                        await signOut()
-                        console.log('✅ Signed out successfully')
-                        setShowMenu(false)
-                      } catch (error: any) {
-                        console.error('❌ Sign out error:', error)
-                        // Still close the menu and clear state even if API fails
-                        setShowMenu(false)
-                      }
+                    onClick={() => {
+                      console.log('🔄 Sign out button clicked')
+                      signOut()
+                      setShowMenu(false)
+                      console.log('✅ Sign out initiated')
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-slate-200 dark:border-slate-700"
                   >

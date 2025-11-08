@@ -147,30 +147,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    try {
-      console.log('🔄 Calling supabase.auth.signOut()...')
-      const { error } = await supabase.auth.signOut()
-      
+    console.log('🔄 Signing out - clearing local state immediately...')
+    
+    // Clear local state FIRST - don't wait for API
+    setUser(null)
+    setProfile(null)
+    setSession(null)
+    console.log('✅ Local auth state cleared')
+    
+    // Fire-and-forget the Supabase signOut (clears server session)
+    supabase.auth.signOut().then(({ error }) => {
       if (error) {
-        console.error('❌ Supabase signOut error:', error)
-        // Continue anyway - clear local state even if API fails
+        console.error('⚠️ Supabase signOut error (non-critical):', error)
       } else {
-        console.log('✅ Supabase signOut successful')
+        console.log('✅ Supabase signOut successful (async)')
       }
-      
-      // Always clear local state
-      setUser(null)
-      setProfile(null)
-      setSession(null)
-      
-      console.log('✅ Local auth state cleared')
-    } catch (err) {
-      console.error('❌ Exception during signOut:', err)
-      // Still clear local state
-      setUser(null)
-      setProfile(null)
-      setSession(null)
-    }
+    }).catch((err) => {
+      console.error('⚠️ Exception during signOut (non-critical):', err)
+    })
   }
 
   const refreshProfile = async () => {
