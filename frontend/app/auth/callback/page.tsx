@@ -24,46 +24,33 @@ export default function AuthCallbackPage() {
         console.log('🔑 Refresh token length:', refreshToken?.length)
 
         if (accessToken && refreshToken) {
-          console.log('🔄 Calling supabase.auth.setSession...')
+          console.log('🔄 Storing session tokens...')
           
           try {
-            // Set the session from hash tokens with timeout
-            const sessionPromise = supabase.auth.setSession({
+            // Manually store the session in localStorage (Supabase format)
+            // This is what Supabase uses internally for session persistence
+            const sessionData = {
               access_token: accessToken,
               refresh_token: refreshToken,
-            })
-
-            // Add 10 second timeout
-            const timeoutPromise = new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('setSession timeout after 10s')), 10000)
-            )
-
-            const { data, error } = await Promise.race([sessionPromise, timeoutPromise])
-
-            console.log('🔄 setSession returned:', { 
-              hasData: !!data, 
-              hasError: !!error,
-              hasSession: !!data?.session,
-              hasUser: !!data?.session?.user 
-            })
-
-            if (error) {
-              console.error('❌ Error setting session:', error)
-              toast.error('Login failed', { description: error.message })
-              router.push('/')
-              return
+              expires_in: 3600,
+              token_type: 'bearer',
+              user: null // Will be populated by Supabase on next getSession call
             }
             
-            console.log('✅ Session set successfully:', data.session?.user?.email)
-            console.log('✅ User ID:', data.session?.user?.id)
-            console.log('✅ Redirecting to homepage...')
-            // Don't show toast here - let AuthContext handle it on SIGNED_IN event
+            // Store in the format Supabase expects
+            const storageKey = `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`
+            localStorage.setItem(storageKey, JSON.stringify(sessionData))
+            console.log('✅ Session tokens stored in localStorage')
             
-            // Redirect using Next.js router (no hard reload)
-            router.push('/')
+            // Show success toast
+            toast.success('Welcome back!', { description: 'Redirecting...' })
+            
+            // Hard redirect to trigger Supabase to pick up the session
+            console.log('✅ Redirecting to homepage...')
+            window.location.href = '/'
             return
           } catch (err: any) {
-            console.error('❌ Exception in setSession:', err)
+            console.error('❌ Exception storing session:', err)
             toast.error('Login failed', { description: err.message || 'Session setup failed' })
             router.push('/')
             return
