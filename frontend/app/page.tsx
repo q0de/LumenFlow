@@ -2,13 +2,15 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useDropzone } from "react-dropzone"
-import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye } from "lucide-react"
+import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye, Copy, Moon, Sun, Clock, Trash2, Zap } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { supabase, isSupabaseAvailable } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { HeaderNav } from "@/components/header-nav"
 import { LoginModal } from "@/components/auth/login-modal"
 import { UpgradePrompt } from "@/components/upgrade-prompt"
+import { toast } from "sonner"
+import confetti from "canvas-confetti"
 
 interface ProcessingJob {
   id: string // Client-side ID
@@ -18,6 +20,8 @@ interface ProcessingJob {
   progress: number
   error?: string
   downloadUrl?: string
+  thumbnail?: string // Video thumbnail
+  startTime?: number // Track when processing started
 }
 
 interface ProcessingOptions {
@@ -31,15 +35,22 @@ interface ProcessingOptions {
   outputWidth: number
 }
 
+interface RecentVideo {
+  filename: string
+  downloadUrl: string
+  thumbnail?: string
+  timestamp: number
+}
+
 const defaultOptions: ProcessingOptions = {
   quality: "good",
-  chromaTolerance: 0.3, // Balanced default - adjust if green remains or person is removed
+  chromaTolerance: 0.3,
   processingSpeed: 4,
   backgroundColor: "#00FF00",
-  enableCodecOverride: false, // Disabled by default - keeps original codec (VP9)
-  codec: "vp8", // VP8 for Unity compatibility (when enabled)
-  enableResize: false, // Disabled by default - keeps original dimensions
-  outputWidth: 1354 // Unity optimized width (when enabled)
+  enableCodecOverride: false,
+  codec: "vp8",
+  enableResize: false,
+  outputWidth: 1354
 }
 
 export default function Home() {
@@ -52,9 +63,68 @@ export default function Home() {
   const [showLogin, setShowLogin] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [usageInfo, setUsageInfo] = useState<{used: number, limit: number} | null>(null)
+  const [recentVideos, setRecentVideos] = useState<RecentVideo[]>([])
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Progress smoothing - track last update time for interpolation
   const progressTimestampsRef = useRef<Map<string, { progress: number, timestamp: number }>>(new Map())
+
+  // Initialize dark mode from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme')
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
+    
+    setIsDarkMode(shouldBeDark)
+    if (shouldBeDark) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode
+    setIsDarkMode(newMode)
+    
+    if (newMode) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+      toast.success('Dark mode enabled')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+      toast.success('Light mode enabled')
+    }
+  }
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+U to open upload dialog
+      if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+        e.preventDefault()
+        fileInputRef.current?.click()
+        toast.info('Upload dialog opened', { description: 'Select your video file' })
+      }
+      
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        setShowLogin(false)
+        setShowUpgrade(false)
+        setExpandedPreview(null)
+      }
+      
+      // Ctrl+D to toggle dark mode
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault()
+        toggleDarkMode()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [isDarkMode])
 
   // Load options from localStorage on mount
   useEffect(() => {
@@ -64,6 +134,21 @@ export default function Home() {
         setOptions({ ...defaultOptions, ...JSON.parse(saved) })
       } catch (e) {
         // Invalid saved data, use defaults
+      }
+    }
+    
+    // Load recent videos
+    const savedRecent = localStorage.getItem("recent-videos")
+    if (savedRecent) {
+      try {
+        const recent = JSON.parse(savedRecent)
+        // Filter out videos older than 24 hours
+        const filtered = recent.filter((v: RecentVideo) => 
+          Date.now() - v.timestamp < 24 * 60 * 60 * 1000
+        )
+        setRecentVideos(filtered)
+      } catch (e) {
+        // Invalid data
       }
     }
   }, [])
@@ -104,16 +189,57 @@ export default function Home() {
     // If user not logged in, show login
     if (!user) {
       setShowLogin(true)
+      toast.error('Please sign in to continue', { description: 'Sign in required to process videos' })
       return false
     }
 
     // Check usage limit
     if (usageInfo && usageInfo.used >= usageInfo.limit) {
       setShowUpgrade(true)
+      toast.error('Usage limit reached', { description: 'Upgrade to process more videos' })
       return false
     }
 
     return true
+  }
+
+  // Generate video thumbnail
+  const generateThumbnail = (videoFile: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video')
+      const canvas = document.createElement('canvas')
+      video.preload = 'metadata'
+      
+      video.onloadeddata = () => {
+        video.currentTime = 1 // Capture at 1 second
+      }
+      
+      video.onseeked = () => {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(video, 0, 0)
+          resolve(canvas.toDataURL('image/jpeg', 0.7))
+        }
+      }
+      
+      video.src = URL.createObjectURL(videoFile)
+    })
+  }
+
+  // Save to recent videos
+  const saveToRecent = (filename: string, downloadUrl: string, thumbnail?: string) => {
+    const recent: RecentVideo = {
+      filename,
+      downloadUrl,
+      thumbnail,
+      timestamp: Date.now()
+    }
+    
+    const updated = [recent, ...recentVideos.slice(0, 9)] // Keep last 10
+    setRecentVideos(updated)
+    localStorage.setItem("recent-videos", JSON.stringify(updated))
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -122,64 +248,78 @@ export default function Home() {
       return
     }
 
+    toast.success(`${acceptedFiles.length} video(s) added to queue`, { 
+      description: 'Starting upload...' 
+    })
+
     for (const file of acceptedFiles) {
       if (!file.type.startsWith("video/")) {
-        alert(`${file.name} is not a video file`)
+        toast.error(`${file.name} is not a video file`, { description: 'Please upload MP4, MOV, or AVI files' })
         continue
       }
 
       const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      
+      // Generate thumbnail
+      let thumbnail: string | undefined
+      try {
+        thumbnail = await generateThumbnail(file)
+      } catch (e) {
+        console.error('Failed to generate thumbnail:', e)
+      }
+
       const newJob: ProcessingJob = {
         id: jobId,
         filename: file.name,
         status: "uploading",
         progress: 0,
+        thumbnail,
+        startTime: Date.now()
       }
 
       setJobs((prev) => [...prev, newJob])
       setIsUploading(true)
+      
+      toast.promise(
+        (async () => {
+          // Upload file with options
+          const formData = new FormData()
+          formData.append("file", file)
+          formData.append("options", JSON.stringify(options))
 
-      try {
-        // Upload file with options
-        const formData = new FormData()
-        formData.append("file", file)
-        formData.append("options", JSON.stringify(options))
+          const uploadResponse = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          })
 
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
+          if (!uploadResponse.ok) {
+            throw new Error("Upload failed")
+          }
 
-        if (!uploadResponse.ok) {
-          throw new Error("Upload failed")
+          const { jobId: serverJobId } = await uploadResponse.json()
+
+          // Update job status and store serverJobId
+          setJobs((prev) =>
+            prev.map((job) =>
+              job.id === jobId
+                ? { ...job, serverJobId, status: "processing", progress: 10 }
+                : job
+            )
+          )
+
+          // Subscribe to real-time updates
+          subscribeToJob(serverJobId, jobId)
+        })(),
+        {
+          loading: `Uploading ${file.name}...`,
+          success: `Processing ${file.name}`,
+          error: `Failed to upload ${file.name}`,
         }
-
-        const { jobId: serverJobId } = await uploadResponse.json()
-
-        // Update job status and store serverJobId
-        setJobs((prev) =>
-          prev.map((job) =>
-            job.id === jobId
-              ? { ...job, serverJobId, status: "processing", progress: 10 }
-              : job
-          )
-        )
-
-        // Subscribe to real-time updates
-        subscribeToJob(serverJobId, jobId)
-      } catch (error) {
-        setJobs((prev) =>
-          prev.map((job) =>
-            job.id === jobId
-              ? { ...job, status: "error", error: String(error) }
-              : job
-          )
-        )
-      } finally {
-        setIsUploading(false)
-      }
+      )
     }
-  }, [options])
+    
+    setIsUploading(false)
+  }, [options, checkUsageBeforeUpload])
 
   // Use Supabase real-time subscriptions with polling fallback
   const channelsRef = useRef<Map<string, any>>(new Map())
@@ -192,19 +332,6 @@ export default function Home() {
       const response = await fetch(`/api/jobs/${serverJobId}`)
       if (response.ok) {
         const job = await response.json()
-        
-        // Debug: log what we received
-        if (job.status === "completed") {
-          console.log(`📥 Frontend received completed job:`, {
-            clientJobId,
-            serverJobId,
-            status: job.status,
-            progress: job.progress,
-            hasDownloadUrl: !!job.downloadUrl,
-            downloadUrl: job.downloadUrl,
-            outputFilename: job.outputFilename
-          })
-        }
         
         setJobs((prev) =>
           prev.map((j) => {
@@ -221,39 +348,54 @@ export default function Home() {
               
               // Use the complete job data from API, keeping only client-side fields
               const updatedJob = {
-                ...job, // Spread all API data (includes downloadUrl!)
-                id: j.id, // Keep client-side ID
-                serverJobId: j.serverJobId, // Keep server ID mapping
-                filename: j.filename, // Keep original filename
+                ...job,
+                id: j.id,
+                serverJobId: j.serverJobId,
+                filename: j.filename,
+                thumbnail: j.thumbnail,
+                startTime: j.startTime
               }
               
-              // Debug: log what we're setting
-              if (status === "completed") {
-                console.log(`✅ Setting job to completed in UI:`, {
-                  id: updatedJob.id,
-                  status: updatedJob.status,
-                  hasDownloadUrl: !!updatedJob.downloadUrl,
-                  downloadUrl: updatedJob.downloadUrl
+              // Handle completion
+              if (status === "completed" && !extraPollingRef.current.get(clientJobId)) {
+                extraPollingRef.current.set(clientJobId, true)
+                
+                // Trigger confetti!
+                confetti({
+                  particleCount: 100,
+                  spread: 70,
+                  origin: { y: 0.6 }
                 })
                 
-                // If we have downloadUrl, we can stop polling after a few more checks
-                // If we don't have it yet, keep polling to get it
-                if (!extraPollingRef.current.get(clientJobId)) {
-                  extraPollingRef.current.set(clientJobId, true)
-                  console.log(`🔄 Will do 3 more polls to ensure complete data`)
-                  
-                  // After 5 more polls (1.5 seconds), stop
-                  setTimeout(() => {
-                    const mainInterval = pollingIntervalsRef.current.get(clientJobId)
-                    if (mainInterval) {
-                      clearInterval(mainInterval)
-                      pollingIntervalsRef.current.delete(clientJobId)
+                // Show success toast
+                toast.success(`${j.filename} is ready!`, { 
+                  description: 'Click to download your video',
+                  action: updatedJob.downloadUrl ? {
+                    label: 'Download',
+                    onClick: () => {
+                      const a = document.createElement('a')
+                      a.href = updatedJob.downloadUrl!
+                      a.download = j.filename.replace(/\.[^/.]+$/, ".webm")
+                      a.click()
                     }
-                    progressTimestampsRef.current.delete(clientJobId)
-                    extraPollingRef.current.delete(clientJobId)
-                    console.log(`🛑 Stopped polling for job ${clientJobId}`)
-                  }, 1500) // 5 more polls at 300ms each
+                  } : undefined
+                })
+                
+                // Save to recent
+                if (updatedJob.downloadUrl) {
+                  saveToRecent(j.filename, updatedJob.downloadUrl, j.thumbnail)
                 }
+                
+                // Stop polling after a delay
+                setTimeout(() => {
+                  const mainInterval = pollingIntervalsRef.current.get(clientJobId)
+                  if (mainInterval) {
+                    clearInterval(mainInterval)
+                    pollingIntervalsRef.current.delete(clientJobId)
+                  }
+                  progressTimestampsRef.current.delete(clientJobId)
+                  extraPollingRef.current.delete(clientJobId)
+                }, 1500)
               }
               
               if (status === "error") {
@@ -264,6 +406,10 @@ export default function Home() {
                   pollingIntervalsRef.current.delete(clientJobId)
                 }
                 progressTimestampsRef.current.delete(clientJobId)
+                
+                toast.error(`${j.filename} failed to process`, { 
+                  description: job.error || 'An error occurred' 
+                })
               }
               
               return updatedJob
@@ -294,7 +440,6 @@ export default function Home() {
 
     // Check if Supabase is available before trying real-time
     if (isSupabaseAvailable()) {
-      // Try real-time subscription
       try {
         const channel = supabase
           .channel(`job:${serverJobId}`)
@@ -314,7 +459,6 @@ export default function Home() {
                     const status = updatedJob.status as ProcessingJob['status']
                     
                     if (status === "completed" || status === "error") {
-                      // Clean up subscription
                       const ch = channelsRef.current.get(clientJobId)
                       if (ch) {
                         supabase.removeChannel(ch)
@@ -322,7 +466,6 @@ export default function Home() {
                       }
                     }
                     
-                    // Use all data from Supabase, keeping client-side fields
                     return {
                       ...job,
                       status: updatedJob.status,
@@ -344,13 +487,12 @@ export default function Home() {
       }
     }
 
-    // Always start polling (works as primary method or backup)
+    // Always start polling
     const pollInterval = setInterval(() => {
       pollJobStatus(serverJobId, clientJobId)
-    }, 300) // Poll every 300ms for highly responsive progress updates
+    }, 300)
     pollingIntervalsRef.current.set(clientJobId, pollInterval)
     
-    // Also do an immediate poll to get current status
     pollJobStatus(serverJobId, clientJobId)
   }, [pollJobStatus])
 
@@ -380,10 +522,49 @@ export default function Home() {
     maxSize: 100 * 1024 * 1024, // 100MB
   })
 
+  // Copy download link
+  const copyDownloadLink = (url: string, filename: string) => {
+    navigator.clipboard.writeText(window.location.origin + url)
+    toast.success('Link copied!', { description: `Share link for ${filename}` })
+  }
+
+  // Calculate estimated time remaining
+  const getEstimatedTime = (job: ProcessingJob): string | null => {
+    if (!job.startTime || job.progress === 0) return null
+    
+    const elapsed = (Date.now() - job.startTime) / 1000 // seconds
+    const estimated = (100 - job.progress) * (elapsed / job.progress)
+    
+    if (estimated < 60) {
+      return `~${Math.round(estimated)}s remaining`
+    } else {
+      return `~${Math.round(estimated / 60)}m remaining`
+    }
+  }
+
+  // Remove job from list
+  const removeJob = (jobId: string) => {
+    setJobs((prev) => prev.filter((j) => j.id !== jobId))
+    toast.success('Job removed')
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Header Navigation */}
       <HeaderNav />
+      
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleDarkMode}
+        className="fixed top-6 left-6 z-10 p-3 bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl transition-all"
+        title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode (Ctrl+D)`}
+      >
+        {isDarkMode ? (
+          <Sun className="h-5 w-5 text-yellow-500" />
+        ) : (
+          <Moon className="h-5 w-5 text-slate-700" />
+        )}
+      </button>
       
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
@@ -396,7 +577,6 @@ export default function Home() {
           >
             {/* Title with Icon */}
             <div className="flex items-center justify-center gap-4 mb-4">
-              {/* Logo Icon - same as footer */}
               <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
                 <Video className="h-8 w-8 text-white" />
               </div>
@@ -428,6 +608,22 @@ export default function Home() {
             <p className="text-sm text-slate-500 dark:text-slate-500 mt-2">
               Fast, automatic background removal with transparent WebM export
             </p>
+            
+            {/* Keyboard shortcuts hint */}
+            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-slate-400">
+              <div className="flex items-center gap-1">
+                <kbd className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded">Ctrl+U</kbd>
+                <span>Upload</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <kbd className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded">Ctrl+D</kbd>
+                <span>Dark Mode</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <kbd className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded">Esc</kbd>
+                <span>Close</span>
+              </div>
+            </div>
           </motion.div>
         </div>
 
@@ -470,9 +666,10 @@ export default function Home() {
                     </label>
                     <select
                       value={options.quality}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setOptions({ ...options, quality: e.target.value as "fast" | "good" | "best" })
-                      }
+                        toast.success('Quality preset updated')
+                      }}
                       className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       <option value="fast">Fast (Lower quality, faster processing)</option>
@@ -632,7 +829,10 @@ export default function Home() {
 
                   {/* Reset Button */}
                   <button
-                    onClick={() => setOptions(defaultOptions)}
+                    onClick={() => {
+                      setOptions(defaultOptions)
+                      toast.success('Settings reset to defaults')
+                    }}
                     className="w-full px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Reset to Defaults
@@ -654,15 +854,35 @@ export default function Home() {
             {...getRootProps()}
             className={`
               border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
-              transition-all duration-300
+              transition-all duration-300 relative overflow-hidden
               ${
                 isDragActive
-                  ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                  ? "border-green-500 bg-green-50 dark:bg-green-900/20 scale-105 shadow-2xl"
                   : "border-slate-300 dark:border-slate-700 hover:border-green-400 dark:hover:border-green-600"
               }
             `}
           >
-            <input {...getInputProps()} />
+            <input {...getInputProps()} ref={fileInputRef} />
+            
+            {/* Animated upload icon on drag */}
+            <AnimatePresence>
+              {isDragActive && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0 }}
+                  className="absolute inset-0 flex items-center justify-center bg-green-500/10 backdrop-blur-sm"
+                >
+                  <motion.div
+                    animate={{ y: [0, -20, 0] }}
+                    transition={{ repeat: Infinity, duration: 1 }}
+                  >
+                    <Upload className="h-24 w-24 text-green-500" />
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
             <Upload className="mx-auto h-16 w-16 text-slate-400 mb-4" />
             {isDragActive ? (
               <p className="text-lg font-semibold text-green-600 dark:text-green-400">
@@ -681,7 +901,7 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Jobs List */}
+        {/* Jobs List with Queue UI */}
         <div className="max-w-4xl mx-auto">
           <AnimatePresence>
             {jobs.map((job) => (
@@ -690,120 +910,215 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mb-4"
+                className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mb-4 relative"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Video className="h-5 w-5 text-slate-400" />
-                    <span className="font-medium text-slate-900 dark:text-slate-100">
-                      {job.filename}
-                    </span>
-                  </div>
-                  {job.status === "completed" && (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                {/* Remove button */}
+                <button
+                  onClick={() => removeJob(job.id)}
+                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-red-500 transition-colors"
+                  title="Remove from list"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+
+                <div className="flex items-start gap-4">
+                  {/* Thumbnail */}
+                  {job.thumbnail && (
+                    <img
+                      src={job.thumbnail}
+                      alt={job.filename}
+                      className="w-24 h-24 object-cover rounded-lg"
+                    />
                   )}
-                  {job.status === "error" && (
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  )}
-                  {job.status === "processing" && (
-                    <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-                  )}
-                </div>
-
-                {/* Progress Bar */}
-                {(job.status === "uploading" || job.status === "processing") && (
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 mb-2">
-                      <span>
-                        {job.status === "uploading" ? "Uploading..." : "Processing..."}
-                      </span>
-                      <span>{Math.round(job.progress)}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <motion.div
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${job.progress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Error Message */}
-                {job.status === "error" && job.error && (
-                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
-                    {job.error}
-                  </div>
-                )}
-
-
-                {/* Download Button & Preview */}
-                {job.status === "completed" && job.downloadUrl && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <a
-                        href={job.downloadUrl}
-                        download
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download WEBM
-                      </a>
-                      <button
-                        onClick={() => setExpandedPreview(expandedPreview === job.id ? null : job.id)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                      >
-                        <Eye className="h-4 w-4" />
-                        {expandedPreview === job.id ? "Hide" : "Test"} Transparency
-                      </button>
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <Video className="h-5 w-5 text-slate-400" />
+                        <span className="font-medium text-slate-900 dark:text-slate-100">
+                          {job.filename}
+                        </span>
+                      </div>
+                      {job.status === "completed" && (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      )}
+                      {job.status === "error" && (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      )}
+                      {job.status === "processing" && (
+                        <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                      )}
                     </div>
 
-                    {/* Transparency Test Preview */}
-                    {expandedPreview === job.id && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700"
-                      >
-                        <div className="mb-3">
-                          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Transparency Test
-                          </h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            The checkerboard background should show through transparent areas. If you see green, adjust chroma tolerance.
-                          </p>
+                    {/* Progress Bar */}
+                    {(job.status === "uploading" || job.status === "processing") && (
+                      <div className="mb-4">
+                        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {job.status === "uploading" ? "Uploading..." : "Processing..."}
+                            </span>
+                            {job.status === "processing" && (
+                              <span className="flex items-center gap-1 text-xs text-slate-500">
+                                <Clock className="h-3 w-3" />
+                                {getEstimatedTime(job)}
+                              </span>
+                            )}
+                          </div>
+                          <span>{Math.round(job.progress)}%</span>
                         </div>
-                        <div
-                          className="relative rounded-lg overflow-hidden"
-                          style={{
-                            background: "repeating-linear-gradient(45deg, #ff6b6b, #ff6b6b 20px, #4ecdc4 20px, #4ecdc4 40px)",
-                            padding: "20px",
-                          }}
-                        >
-                          <video
-                            src={job.downloadUrl}
-                            controls
-                            autoPlay
-                            loop
-                            className="w-full h-auto rounded-lg shadow-lg"
-                            style={{ maxHeight: "400px" }}
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                          <motion.div
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${job.progress}%` }}
+                            transition={{ duration: 0.3 }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error Message */}
+                    {job.status === "error" && job.error && (
+                      <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
+                        {job.error}
+                      </div>
+                    )}
+
+                    {/* Download Button & Preview */}
+                    {job.status === "completed" && job.downloadUrl && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <a
+                            href={job.downloadUrl}
+                            download
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                           >
-                            Your browser does not support the video tag.
-                          </video>
+                            <Download className="h-4 w-4" />
+                            Download WEBM
+                          </a>
+                          <button
+                            onClick={() => copyDownloadLink(job.downloadUrl!, job.filename)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy Link
+                          </button>
+                          <button
+                            onClick={() => setExpandedPreview(expandedPreview === job.id ? null : job.id)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                          >
+                            <Eye className="h-4 w-4" />
+                            {expandedPreview === job.id ? "Hide" : "Test"} Transparency
+                          </button>
                         </div>
-                      </motion.div>
+
+                        {/* Transparency Test Preview */}
+                        {expandedPreview === job.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="mb-3">
+                              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Transparency Test
+                              </h3>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                The checkerboard background should show through transparent areas. If you see green, adjust chroma tolerance.
+                              </p>
+                            </div>
+                            <div
+                              className="relative rounded-lg overflow-hidden"
+                              style={{
+                                background: "repeating-linear-gradient(45deg, #ff6b6b, #ff6b6b 20px, #4ecdc4 20px, #4ecdc4 40px)",
+                                padding: "20px",
+                              }}
+                            >
+                              <video
+                                src={job.downloadUrl}
+                                controls
+                                autoPlay
+                                loop
+                                className="w-full h-auto rounded-lg shadow-lg"
+                                style={{ maxHeight: "400px" }}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
 
+        {/* Recently Processed Videos */}
+        {recentVideos.length > 0 && jobs.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto mt-8"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <Zap className="h-5 w-5 text-green-500" />
+              Recent Videos
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {recentVideos.slice(0, 8).map((video, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="relative group cursor-pointer bg-white dark:bg-slate-800 rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all"
+                >
+                  {video.thumbnail ? (
+                    <img
+                      src={video.thumbnail}
+                      alt={video.filename}
+                      className="w-full h-32 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                      <Video className="h-12 w-12 text-white" />
+                    </div>
+                  )}
+                  <div className="p-2">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                      {video.filename}
+                    </p>
+                  </div>
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <a
+                      href={video.downloadUrl}
+                      download
+                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        const a = document.createElement('a')
+                        a.href = video.downloadUrl
+                        a.download = video.filename.replace(/\.[^/.]+$/, ".webm")
+                        a.click()
+                        toast.success('Downloading...', { description: video.filename })
+                      }}
+                    >
+                      Download
+                    </a>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Info Footer */}
-        {jobs.length === 0 && (
+        {jobs.length === 0 && recentVideos.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -835,4 +1150,3 @@ export default function Home() {
     </div>
   )
 }
-

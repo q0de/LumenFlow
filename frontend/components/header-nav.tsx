@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { User, LogOut, CreditCard, Video } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -11,6 +11,14 @@ export function HeaderNav() {
   const { user, profile, signOut } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Show loading skeleton initially
+  useEffect(() => {
+    // Small delay to check auth state
+    const timer = setTimeout(() => setIsLoading(false), 500)
+    return () => clearTimeout(timer)
+  }, [user])
 
   const handleManageSubscription = async () => {
     try {
@@ -31,7 +39,13 @@ export function HeaderNav() {
     <>
       <nav className="absolute top-0 right-0 p-6 z-10">
         <div className="flex items-center gap-4">
-          {!user ? (
+          {isLoading ? (
+            <>
+              {/* Loading skeletons */}
+              <div className="h-10 w-20 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse" />
+              <div className="h-10 w-24 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse" />
+            </>
+          ) : !user ? (
             <>
               <button
                 onClick={() => setShowLogin(true)}
