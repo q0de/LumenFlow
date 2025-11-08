@@ -69,6 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           await fetchProfile(session.user.id)
+          
+          // Show welcome toast on sign in
+          if (event === 'SIGNED_IN') {
+            toast.success('Welcome back!', { description: 'You have successfully signed in' })
+          }
         } else {
           setProfile(null)
           

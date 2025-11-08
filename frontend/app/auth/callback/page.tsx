@@ -29,15 +29,17 @@ export default function AuthCallbackPage() {
           })
 
           if (error) {
-            console.error('Session error:', error)
-            toast.error('Sign in failed', { description: error.message })
-          } else {
-            console.log('✅ Session set successfully:', data)
-            toast.success('Welcome back!', { description: 'You have successfully signed in' })
+            console.error('❌ Error setting session:', error)
+            toast.error('Login failed', { description: error.message })
+            router.push('/')
+            return
           }
-
-          // Clean up URL and redirect
-          window.location.href = '/'
+          
+          console.log('✅ Session set successfully:', data.session?.user?.email)
+          // Don't show toast here - let AuthContext handle it on SIGNED_IN event
+          
+          // Redirect using Next.js router (no hard reload)
+          router.push('/')
           return
         }
 
@@ -49,14 +51,15 @@ export default function AuthCallbackPage() {
           const { data, error } = await supabase.auth.exchangeCodeForSession(code)
           
           if (error) {
-            console.error('Code exchange error:', error)
-            toast.error('Sign in failed', { description: error.message })
-          } else {
-            console.log('✅ Code exchanged successfully:', data)
-            toast.success('Welcome back!', { description: 'You have successfully signed in' })
+            console.error('❌ Error exchanging code for session:', error)
+            toast.error('Login failed', { description: error.message })
+            router.push('/')
+            return
           }
-
-          // Redirect to home
+          
+          console.log('✅ Code exchanged for session successfully')
+          // Don't show toast here - let AuthContext handle it on SIGNED_IN event
+          
           router.push('/')
           return
         }
