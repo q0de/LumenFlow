@@ -22,6 +22,12 @@ export async function GET() {
       hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
     }
+  }, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    }
   })
 }
 
@@ -85,12 +91,25 @@ export async function POST(request: NextRequest) {
     })
 
     console.log('✅ Portal session created:', session.id)
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: session.url }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    })
   } catch (error: any) {
     console.error("❌ Stripe portal error:", error.message, error.stack)
     return NextResponse.json(
       { error: error.message || "Failed to create portal session" },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
     )
   }
 }
