@@ -2,14 +2,32 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 
+console.log('🔵 Portal route module loaded at:', new Date().toISOString())
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
   apiVersion: "2025-10-29.clover",
 })
 
+export async function GET() {
+  console.log('🟢 GET /api/stripe/portal called')
+  return NextResponse.json({ 
+    message: "Portal route is alive",
+    timestamp: new Date().toISOString(),
+    env: {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+    }
+  })
+}
+
 export async function POST(request: NextRequest) {
+  console.log('🟢 POST /api/stripe/portal called at:', new Date().toISOString())
+  
   try {
     // Get auth token from Authorization header
     const authHeader = request.headers.get('authorization')
+    console.log('🔑 Auth header present:', !!authHeader)
     const token = authHeader?.replace('Bearer ', '')
     
     if (!token) {
@@ -17,12 +35,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized - No token" }, { status: 401 })
     }
     
+    console.log('🔧 Creating Supabase client...')
     // Create Supabase client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     
+    console.log('👤 Getting user from token...')
     // Get authenticated user using the token
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     
@@ -31,28 +51,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized - Invalid token" }, { status: 401 })
     }
     
-    console.log('✅ Authenticated user:', user.email)
+    console.log('✅ Authenticated user:', user.email, 'ID:', user.id)
 
+    console.log('📊 Fetching profile from Supabase...')
     // Get Stripe customer ID
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_customer_id')
       .eq('id', user.id)
       .single()
 
+    console.log('📊 Profile result:', { 
+      hasProfile: !!profile, 
+      hasCustomerId: !!profile?.stripe_customer_id,
+      customerId: profile?.stripe_customer_id,
+      error: profileError?.message 
+    })
+
     if (!profile?.stripe_customer_id) {
+      console.error('❌ No stripe_customer_id found for user:', user.id)
       return NextResponse.json({ error: "No subscription found" }, { status: 404 })
     }
 
+    console.log('💳 Creating Stripe portal session for customer:', profile.stripe_customer_id)
     // Create portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin')}/pricing`,
     })
 
+    console.log('✅ Portal session created:', session.id)
     return NextResponse.json({ url: session.url })
   } catch (error: any) {
-    console.error("Stripe portal error:", error)
+    console.error("❌ Stripe portal error:", error.message, error.stack)
     return NextResponse.json(
       { error: error.message || "Failed to create portal session" },
       { status: 500 }
