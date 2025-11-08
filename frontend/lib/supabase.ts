@@ -43,7 +43,17 @@ function getSupabaseClient(): SupabaseClient {
     isServer: typeof window === 'undefined'
   })
 
-  return createClient(supabaseUrl, supabaseAnonKey)
+  // Explicitly configure auth to use localStorage (not cookies)
+  // This fixes hanging setSession/signOut issues
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storageKey: `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token`,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  })
 }
 
 // Check if Supabase is properly configured (for client-side)
