@@ -54,13 +54,35 @@ export function isSupabaseAvailable(): boolean {
   return !!(url && key && !url.includes('placeholder') && !url.includes('dummy'))
 }
 
+// Create a deep no-op proxy that handles nested property access
+function createNoOpProxy(): any {
+  return new Proxy(() => {}, {
+    get(_target, prop) {
+      // Return promises that resolve to null for async methods
+      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+        return undefined
+      }
+      // Return another no-op proxy for nested access
+      return createNoOpProxy()
+    },
+    apply() {
+      // Return a promise that resolves to a failure response
+      return Promise.resolve({ 
+        data: null, 
+        error: { message: 'Supabase not available', status: 503 } 
+      })
+    }
+  })
+}
+
 // Client-side Supabase client (lazy initialization)
 let supabaseInstance: SupabaseClient | null = null
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    // If Supabase isn't available, return a no-op object
+    // If Supabase isn't available, return a no-op proxy
     if (typeof window !== 'undefined' && !isSupabaseAvailable()) {
-      return () => {} // Return no-op functions
+      console.warn(`⚠️ Supabase.${String(prop)} called but Supabase is not available`)
+      return createNoOpProxy()
     }
     
     if (!supabaseInstance) {
@@ -68,7 +90,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
         supabaseInstance = getSupabaseClient()
       } catch (error) {
         console.error('Failed to initialize Supabase client:', error)
-        return () => {} // Return no-op on error
+        return createNoOpProxy()
       }
     }
     const value = (supabaseInstance as any)[prop]
