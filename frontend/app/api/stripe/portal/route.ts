@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 
+console.log('🔵 Portal route module loaded')
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
   apiVersion: "2025-10-29.clover",
 })
 
 export async function POST(request: NextRequest) {
+  console.log('🟢 Portal POST handler called')
   try {
     // Get auth token from Authorization header
     const authHeader = request.headers.get('authorization')
