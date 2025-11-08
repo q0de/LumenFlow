@@ -27,17 +27,27 @@ export function LoginModal({ isOpen, onClose, defaultMode = "signin" }: LoginMod
       setError(null)
       setLoading(true)
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('🔐 Starting OAuth with provider:', provider)
+      console.log('📍 Redirect URL will be:', window.location.origin)
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: false
         }
       })
       
-      if (error) throw error
+      console.log('🔑 OAuth response:', { data, error })
+      
+      if (error) {
+        console.error('❌ OAuth error:', error)
+        throw error
+      }
       
       // The page will redirect to the OAuth provider
     } catch (err: any) {
+      console.error('❌ Caught error:', err)
       setError(err.message || "An error occurred")
       setLoading(false)
     }
