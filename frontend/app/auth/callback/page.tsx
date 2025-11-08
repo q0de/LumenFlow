@@ -20,13 +20,19 @@ export default function AuthCallbackPage() {
         const refreshToken = hashParams.get('refresh_token')
         
         console.log('🔑 Tokens found:', { hasAccess: !!accessToken, hasRefresh: !!refreshToken })
+        console.log('🔑 Access token length:', accessToken?.length)
+        console.log('🔑 Refresh token length:', refreshToken?.length)
 
         if (accessToken && refreshToken) {
+          console.log('🔄 Calling supabase.auth.setSession...')
+          
           // Set the session from hash tokens
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           })
+
+          console.log('🔄 setSession returned:', { data: !!data, error: !!error })
 
           if (error) {
             console.error('❌ Error setting session:', error)
@@ -36,6 +42,7 @@ export default function AuthCallbackPage() {
           }
           
           console.log('✅ Session set successfully:', data.session?.user?.email)
+          console.log('✅ Redirecting to homepage...')
           // Don't show toast here - let AuthContext handle it on SIGNED_IN event
           
           // Redirect using Next.js router (no hard reload)
