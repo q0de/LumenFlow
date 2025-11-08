@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
           storage: {
             getItem: (key: string) => {
               const cookie = cookieStore.get(key)
-              return cookie?.value
+              return cookie?.value ?? null
             },
             setItem: () => {},
             removeItem: () => {},
