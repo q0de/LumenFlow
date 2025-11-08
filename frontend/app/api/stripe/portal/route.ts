@@ -13,9 +13,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🟢 POST /api/stripe/portal called')
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
+    console.log('🔑 Auth header present:', !!authHeader)
     
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
