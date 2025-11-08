@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 
-// Force dynamic rendering and Node.js runtime
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
-
 console.log('🔵 /api/billing-portal route module loaded at:', new Date().toISOString())
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
