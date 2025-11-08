@@ -1,5 +1,6 @@
 import { loadStripe, Stripe } from "@stripe/stripe-js"
 import { toast } from "sonner"
+import { supabase } from "./supabase"
 
 let stripePromise: Promise<Stripe | null>
 
@@ -19,10 +20,22 @@ export async function createCheckoutSession() {
   const toastId = toast.loading('Preparing checkout...', { description: 'Setting up your payment' })
   
   try {
+    // Get current session token
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.access_token) {
+      toast.error('Please sign in', { 
+        id: toastId,
+        description: 'You must be signed in to upgrade'
+      })
+      throw new Error('Not authenticated')
+    }
+    
     const response = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
     })
 

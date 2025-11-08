@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
   apiVersion: "2025-10-29.clover",
@@ -9,31 +8,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_
 
 export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client with cookies for authentication
-    const cookieStore = cookies()
+    // Get auth token from Authorization header
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    
+    if (!token) {
+      console.error('❌ No auth token provided')
+      return NextResponse.json({ error: "Unauthorized - No token" }, { status: 401 })
+    }
+    
+    // Create Supabase client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          storage: {
-            getItem: (key: string) => {
-              const cookie = cookieStore.get(key)
-              return cookie?.value ?? null
-            },
-            setItem: () => {},
-            removeItem: () => {},
-          },
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get authenticated user using the token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      console.error('❌ Auth error:', authError?.message)
+      return NextResponse.json({ error: "Unauthorized - Invalid token" }, { status: 401 })
     }
+    
+    console.log('✅ Authenticated user:', user.email)
 
     // Get or create Stripe customer
     const { data: profile } = await supabase
