@@ -2,16 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 
-console.log('🔵 Portal route module loaded at:', new Date().toISOString())
+// Force dynamic rendering and Node.js runtime
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+console.log('🔵 Billing Portal route module loaded at:', new Date().toISOString())
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
   apiVersion: "2025-10-29.clover",
 })
 
 export async function GET() {
-  console.log('🟢 GET /api/stripe/portal called')
+  console.log('🟢 GET /api/stripe/billing-portal called')
   return NextResponse.json({ 
-    message: "Portal route is alive",
+    message: "Billing Portal route is alive",
     timestamp: new Date().toISOString(),
     env: {
       hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,7 +26,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('🟢 POST /api/stripe/portal called at:', new Date().toISOString())
+  console.log('🟢 POST /api/stripe/billing-portal called at:', new Date().toISOString())
   
   try {
     // Get auth token from Authorization header
