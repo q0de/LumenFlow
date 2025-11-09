@@ -278,6 +278,11 @@ async function processVideo(
       ffmpeg.stderr.on('data', (data: Buffer) => {
         const output = data.toString()
         
+        // Log ALL FFmpeg output for debugging
+        if (output.includes('Error') || output.includes('error') || output.includes('Invalid') || output.includes('failed')) {
+          process.stderr.write(`🔴 FFmpeg Error Output: ${output}\n`)
+        }
+        
         // Extract duration (only once)
         if (!duration) {
           const durationMatch = output.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/)
