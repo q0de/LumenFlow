@@ -362,8 +362,16 @@ export default function Home() {
           formData.append("file", file)
           formData.append("options", JSON.stringify(options))
 
+          // Get auth token if user is logged in
+          const { data: { session } } = await supabase.auth.getSession()
+          const headers: HeadersInit = {}
+          if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`
+          }
+
           const uploadResponse = await fetch("/api/upload", {
             method: "POST",
+            headers,
             body: formData,
           })
 
