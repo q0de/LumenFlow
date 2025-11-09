@@ -259,7 +259,8 @@ async function processVideo(
         webmPath
       ]
 
-      console.log(`Starting FFmpeg processing for job ${jobId}`)
+      process.stderr.write(`🎬 Starting FFmpeg processing for job ${jobId}\n`)
+      process.stderr.write(`🎬 FFmpeg command: ffmpeg ${ffmpegArgs.join(' ')}\n`)
       const ffmpeg = spawn('ffmpeg', ffmpegArgs)
 
       let duration: number | null = null
@@ -278,7 +279,7 @@ async function processVideo(
             const seconds = parseInt(durationMatch[3])
             const centiseconds = parseInt(durationMatch[4])
             duration = hours * 3600 + minutes * 60 + seconds + centiseconds / 100
-            console.log(`Video duration: ${duration}s`)
+            process.stderr.write(`📹 Video duration: ${duration.toFixed(1)}s\n`)
           }
         }
 
@@ -294,13 +295,13 @@ async function processVideo(
           // Calculate progress (20% to 95% - leave 5% for finalization)
           const progress = Math.min(20 + Math.floor((currentTime / duration) * 75), 95)
           
-          // Update every 1% for smooth progress bar (was 2%)
-          if (progress > lastProgress) {
+          // Update every 5% for cleaner logs (was 1%)
+          if (progress >= lastProgress + 5 || progress === 95) {
             lastProgress = progress
             setJob(jobId, { status: "processing", progress }).catch(err => {
-              console.error('Error updating progress:', err)
+              process.stderr.write(`❌ Error updating progress: ${err}\n`)
             })
-            console.log(`Progress: ${progress}% (${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)`)
+            process.stderr.write(`⏳ Progress: ${progress}% (${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)\n`)
           }
         }
       })
@@ -308,31 +309,31 @@ async function processVideo(
       // Handle FFmpeg completion
       ffmpeg.on('close', async (code) => {
         if (code === 0) {
-          console.log(`✅ FFmpeg completed successfully for job ${jobId}`)
+          process.stderr.write(`✅ FFmpeg completed successfully for job ${jobId}\n`)
           const outputFilename = `${baseFilename}.webm`
           const fullOutputPath = join(webmDir, outputFilename)
-          console.log(`📦 Output file: ${outputFilename}`)
-          console.log(`📂 Full path: ${fullOutputPath}`)
+          process.stderr.write(`📦 Output file: ${outputFilename}\n`)
+          process.stderr.write(`📂 Full path: ${fullOutputPath}\n`)
           
           // Verify file exists
           try {
             const stats = await stat(fullOutputPath)
-            console.log(`✅ File exists! Size: ${stats.size} bytes`)
+            process.stderr.write(`✅ File exists! Size: ${stats.size} bytes\n`)
           } catch (err) {
-            console.error(`❌ File not found at ${fullOutputPath}:`, err)
+            process.stderr.write(`❌ File not found at ${fullOutputPath}: ${err}\n`)
           }
           
-          console.log(`💾 Updating job status to completed with outputFilename: ${outputFilename}`)
+          process.stderr.write(`💾 Updating job status to completed with outputFilename: ${outputFilename}\n`)
           await setJob(jobId, {
             status: "completed",
             progress: 100,
             outputFilename,
           })
-          console.log(`✅ Job ${jobId} marked as completed in database`)
+          process.stderr.write(`✅ Job ${jobId} marked as completed in database\n`)
           resolve()
         } else {
           const errorMsg = `FFmpeg exited with code ${code}`
-          console.error(`❌ ${errorMsg}`)
+          process.stderr.write(`❌ ${errorMsg}\n`)
           await setJob(jobId, {
             status: "error",
             progress: 0,
@@ -344,7 +345,7 @@ async function processVideo(
 
       // Handle FFmpeg errors
       ffmpeg.on('error', async (error) => {
-        console.error('FFmpeg error:', error)
+        process.stderr.write(`❌ FFmpeg error: ${error.message}\n`)
         await setJob(jobId, {
           status: "error",
           progress: 0,
