@@ -16,26 +16,54 @@ export const getStripe = () => {
   return stripePromise
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function getAccessTokenWithRetry(maxAttempts = 5, delayMs = 300) {
+  let lastError: Error | undefined
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { data: { session }, error } = await supabase.auth.getSession()
+
+    if (error) {
+      console.warn('⚠️ Supabase getSession error:', error)
+      lastError = error
+      break
+    }
+
+    if (session?.access_token) {
+      if (attempt > 1) {
+        console.log('✅ Supabase session restored on retry', { attempt })
+      }
+      return session.access_token
+    }
+
+    console.log('⌛ Waiting for Supabase session restore...', { attempt })
+    await sleep(delayMs)
+  }
+
+  throw lastError || new Error('Not authenticated')
+}
+
 export async function createCheckoutSession() {
   const toastId = toast.loading('Preparing checkout...', { description: 'Setting up your payment' })
   
   try {
-    // Get current session token
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session?.access_token) {
+    let accessToken: string
+    try {
+      accessToken = await getAccessTokenWithRetry()
+    } catch (error) {
       toast.error('Please sign in', { 
         id: toastId,
         description: 'You must be signed in to upgrade'
       })
-      throw new Error('Not authenticated')
+      throw error
     }
-    
+
     const response = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
       },
     })
 
@@ -45,7 +73,12 @@ export async function createCheckoutSession() {
         id: toastId,
         description: error.error || 'Failed to create checkout session'
       })
-      throw new Error(error.error || 'Failed to create checkout session')
+      const message = error.error || 'Failed to create checkout session'
+      toast.error('Checkout failed', { 
+        id: toastId,
+        description: message
+      })
+      throw new Error(message)
     }
 
     const { url } = await response.json()
@@ -63,20 +96,15 @@ export async function createCheckoutSession() {
 
 export async function openCustomerPortal() {
   try {
-    // Get current session token
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session?.access_token) {
-      throw new Error('Not authenticated')
-    }
-    
+    const accessToken = await getAccessTokenWithRetry()
+
     // Add cache-busting timestamp to bypass Cloudflare cache
     const timestamp = Date.now()
     const response = await fetch(`/api/billing-portal?t=${timestamp}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
       },
     })
 
@@ -89,6 +117,9 @@ export async function openCustomerPortal() {
     window.location.href = url
   } catch (error: any) {
     console.error('Portal error:', error)
+    toast.error('Unable to open customer portal', {
+      description: error?.message || 'Please try again in a moment',
+    })
     throw error
   }
 }

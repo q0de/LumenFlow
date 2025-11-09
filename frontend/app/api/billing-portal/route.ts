@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@/lib/supabase"
 
 console.log('🔵 /api/billing-portal route module loaded at:', new Date().toISOString())
 
@@ -41,12 +41,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized - No token" }, { status: 401 })
     }
     
-    console.log('🔧 Creating Supabase client...')
-    // Create Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    console.log('🔧 Creating Supabase server client...')
+    const supabase = createServerClient()
     
     console.log('👤 Getting user from token...')
     // Get authenticated user using the token

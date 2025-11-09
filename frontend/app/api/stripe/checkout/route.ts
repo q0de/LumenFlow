@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@/lib/supabase"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_build', {
   apiVersion: "2025-10-29.clover",
@@ -17,11 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized - No token" }, { status: 401 })
     }
     
-    // Create Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const supabase = createServerClient()
     
     // Get authenticated user using the token
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
@@ -34,11 +30,16 @@ export async function POST(request: NextRequest) {
     console.log('✅ Authenticated user:', user.email)
 
     // Get or create Stripe customer
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_customer_id, email')
       .eq('id', user.id)
       .single()
+
+    if (profileError) {
+      console.error('❌ Supabase profile fetch error:', profileError.message)
+      return NextResponse.json({ error: "Failed to load profile" }, { status: 400 })
+    }
 
     let customerId = profile?.stripe_customer_id
 
@@ -52,10 +53,15 @@ export async function POST(request: NextRequest) {
       customerId = customer.id
 
       // Save customer ID to profile
-      await supabase
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({ stripe_customer_id: customerId })
         .eq('id', user.id)
+
+      if (updateError) {
+        console.error('❌ Supabase update error (customer id):', updateError.message)
+        return NextResponse.json({ error: "Failed to update customer" }, { status: 400 })
+      }
     }
 
     // Create checkout session
