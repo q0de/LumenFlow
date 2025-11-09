@@ -421,7 +421,12 @@ export default function Home() {
                 serverJobId: j.serverJobId,
                 filename: j.filename,
                 thumbnail: j.thumbnail,
-                startTime: j.startTime
+                startTime: j.startTime,
+                // Preserve metadata fields
+                fileSize: j.fileSize,
+                duration: j.duration,
+                resolution: j.resolution,
+                format: j.format
               }
               
               // Handle completion
