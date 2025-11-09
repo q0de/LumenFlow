@@ -72,12 +72,12 @@ export function HeaderNav() {
               </button>
 
               {showMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg py-2 border border-slate-200 dark:border-slate-700">
+                <div className="absolute right-0 mt-2 min-w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg py-2 border border-slate-200 dark:border-slate-700">
                   <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
                       {profile?.email}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {profile?.subscription_tier === 'pro' ? 'Pro Plan' : 'Free Plan'}
                     </p>
                   </div>

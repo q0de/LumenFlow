@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import { User, Session } from "@supabase/supabase-js"
 import { supabase } from "./supabase"
-import { toast } from "sonner"
+import { toast } from "./toast-utils"
 
 function withTimeout<T>(promiseLike: Promise<T> | PromiseLike<T>, timeoutMs = 4000): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined

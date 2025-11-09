@@ -1,5 +1,5 @@
 import { loadStripe, Stripe } from "@stripe/stripe-js"
-import { toast } from "sonner"
+import { toast } from "./toast-utils"
 import { supabase } from "./supabase"
 
 let stripePromise: Promise<Stripe | null>

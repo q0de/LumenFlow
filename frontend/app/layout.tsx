@@ -271,8 +271,8 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900`}>
         <AuthProvider>
-          <Toaster position="top-right" richColors closeButton />
-          <main className="flex-1 pb-48">
+          <Toaster position="bottom-right" richColors closeButton />
+          <main className="flex-1 pb-64 md:pb-48">
             {children}
           </main>
           <Footer />

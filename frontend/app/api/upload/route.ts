@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
       progress: 10,
       filename: filename,
       options: options,
+      has_watermark: addWatermark,
     })
 
     // Process video asynchronously with options
@@ -179,7 +180,8 @@ async function processVideo(
         `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
         ...(options.enableResize ? [`scale=${options.outputWidth}:-1`] : []),
         ...(addWatermark ? [
-          `drawtext=text='GreenScreenRemover.com':fontsize=20:fontcolor=white@0.7:x=(w-text_w)/2:y=h-th-15:borderw=2:bordercolor=black@0.9`
+          // Watermark at bottom center with semi-transparent background box
+          `drawtext=text='GreenScreenRemover.com':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=h-th-20:box=1:boxcolor=black@0.6:boxborderw=10`
         ] : []),
         'format=yuva420p'
       ]

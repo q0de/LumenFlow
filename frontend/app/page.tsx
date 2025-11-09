@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context"
 import { HeaderNav } from "@/components/header-nav"
 import { LoginModal } from "@/components/auth/login-modal"
 import { UpgradePrompt } from "@/components/upgrade-prompt"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast-utils"
 import confetti from "canvas-confetti"
 
 interface ProcessingJob {
@@ -22,6 +22,7 @@ interface ProcessingJob {
   downloadUrl?: string
   thumbnail?: string // Video thumbnail
   startTime?: number // Track when processing started
+  has_watermark?: boolean // Whether video has watermark
 }
 
 interface ProcessingOptions {
@@ -62,6 +63,7 @@ export default function Home() {
   const [expandedPreview, setExpandedPreview] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [upgradeReason, setUpgradeReason] = useState<"limit_reached" | "no_watermark">("limit_reached")
   const [usageInfo, setUsageInfo] = useState<{used: number, limit: number} | null>(null)
   const [recentVideos, setRecentVideos] = useState<RecentVideo[]>([])
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -193,6 +195,7 @@ export default function Home() {
 
     // Check usage limit
     if (usageInfo && usageInfo.used >= usageInfo.limit) {
+      setUpgradeReason("limit_reached")
       setShowUpgrade(true)
       toast.error('Usage limit reached', { description: 'Upgrade to process more videos' })
       return false
@@ -928,13 +931,12 @@ export default function Home() {
                   )}
                   
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <Video className="h-5 w-5 text-slate-400" />
-                        <span className="font-medium text-slate-900 dark:text-slate-100">
-                          {job.filename}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <Video className="h-5 w-5 text-slate-400" />
+                      <span className="font-medium text-slate-900 dark:text-slate-100">
+                        {job.filename}
+                      </span>
+                      {/* Status icons next to filename */}
                       {job.status === "completed" && (
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
                       )}
@@ -942,6 +944,9 @@ export default function Home() {
                         <XCircle className="h-5 w-5 text-red-500" />
                       )}
                       {job.status === "processing" && (
+                        <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                      )}
+                      {job.status === "uploading" && (
                         <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
                       )}
                     </div>
@@ -984,6 +989,27 @@ export default function Home() {
                     {/* Download Button & Preview */}
                     {job.status === "completed" && job.downloadUrl && (
                       <div className="space-y-4">
+                        {/* Watermark notice for free tier */}
+                        {job.has_watermark && (
+                          <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                              <span className="text-sm text-amber-800 dark:text-amber-200">
+                                This video includes a watermark
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setUpgradeReason("no_watermark")
+                                setShowUpgrade(true)
+                              }}
+                              className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 underline"
+                            >
+                              Remove watermark
+                            </button>
+                          </div>
+                        )}
+                        
                         <div className="flex items-center gap-3 flex-wrap">
                           <a
                             href={job.downloadUrl}
@@ -1139,7 +1165,7 @@ export default function Home() {
       <UpgradePrompt
         isOpen={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        reason="limit_reached"
+        reason={upgradeReason}
         videosUsed={usageInfo?.used}
         videosLimit={usageInfo?.limit}
       />
