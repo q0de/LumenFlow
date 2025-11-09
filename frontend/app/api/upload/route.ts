@@ -80,15 +80,15 @@ export async function POST(request: NextRequest) {
     let userTier: "free" | "pro" = "free"
     let addWatermark = false
 
-    console.log('🎨 WATERMARK CHECK START')
-    console.log('💳 ENABLE_PAYMENTS:', process.env.NEXT_PUBLIC_ENABLE_PAYMENTS)
-    console.log('💳 Payments enabled?:', process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true')
+    process.stderr.write('🎨 WATERMARK CHECK START\n')
+    process.stderr.write(`💳 ENABLE_PAYMENTS: ${process.env.NEXT_PUBLIC_ENABLE_PAYMENTS}\n`)
+    process.stderr.write(`💳 Payments enabled?: ${process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true'}\n`)
 
     if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true') {
       const supabase = createServerClient()
       const { data: { user } } = await supabase.auth.getUser()
       
-      console.log('👤 User found:', !!user, user?.email)
+      process.stderr.write(`👤 User found: ${!!user} ${user?.email || 'N/A'}\n`)
       
       if (user) {
         userId = user.id
@@ -100,14 +100,14 @@ export async function POST(request: NextRequest) {
           .eq('id', user.id)
           .single()
         
-        console.log('📊 Profile:', profile)
+        process.stderr.write(`📊 Profile: ${JSON.stringify(profile)}\n`)
         
         if (profile) {
           userTier = profile.subscription_tier as "free" | "pro"
           addWatermark = shouldAddWatermark(userTier)
           
-          console.log('🎯 User tier:', userTier)
-          console.log('🖼️ Add watermark?:', addWatermark)
+          process.stderr.write(`🎯 User tier: ${userTier}\n`)
+          process.stderr.write(`🖼️ Add watermark?: ${addWatermark}\n`)
           
           // Increment usage count
           await incrementUsage(user.id).catch(err => {
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Process video asynchronously with options
-    processVideo(jobId, inputPath, baseFilename, keyedDir, webmDir, options, addWatermark).catch(
+    processVideo(jobId, inputPath, baseFilename, keyedDir, webmDir, options, addWatermark, userTier).catch(
       async (error) => {
         await setJob(jobId, {
           status: "error",
@@ -158,18 +158,28 @@ async function processVideo(
   keyedDir: string,
   webmDir: string,
   options: ProcessingOptions,
-  addWatermark: boolean = false
+  addWatermark: boolean = false,
+  userTier: "free" | "pro" = "free"
 ) {
   return new Promise<void>(async (resolve, reject) => {
     try {
-      // Map quality to CRF values
-      const qualityMap = {
-        fast: 40,
-        good: 30,
-        best: 20
-      }
+      // Map quality to CRF values - FREE TIER GETS LOWER QUALITY
+      // Lower CRF = better quality, Higher CRF = more compression
+      const qualityMap = userTier === "free" 
+        ? {
+            fast: 45,   // Free tier: heavily compressed
+            good: 45,   // Free tier: locked to same quality
+            best: 45    // Free tier: locked to same quality
+          }
+        : {
+            fast: 40,   // Pro: normal fast quality
+            good: 30,   // Pro: good quality
+            best: 20    // Pro: best quality (minimal compression)
+          }
 
       const crf = qualityMap[options.quality]
+      
+      process.stderr.write(`🎬 Quality settings - Tier: ${userTier}, CRF: ${crf}, Selected: ${options.quality}\n`)
       const bgColor = options.backgroundColor.replace("#", "")
       const tolerance = options.chromaTolerance
       const speed = options.processingSpeed
