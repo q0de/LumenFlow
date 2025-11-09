@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useDropzone } from "react-dropzone"
-import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye, Copy, Moon, Sun, Clock, Trash2, Zap } from "lucide-react"
+import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye, Copy, Moon, Sun, Clock, Trash2, Zap, Lock } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { supabase, isSupabaseAvailable } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
@@ -732,21 +732,60 @@ export default function Home() {
                 <div className="mt-2 p-6 bg-white dark:bg-slate-800 rounded-lg shadow-md space-y-6">
                   {/* Quality Preset */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Quality Preset
-                    </label>
-                    <select
-                      value={options.quality}
-                      onChange={(e) => {
-                        setOptions({ ...options, quality: e.target.value as "fast" | "good" | "best" })
-                        toast.success('Quality preset updated')
-                      }}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="fast">Fast (Lower quality, faster processing)</option>
-                      <option value="good">Good (Balanced - Recommended)</option>
-                      <option value="best">Best (Higher quality, slower processing)</option>
-                    </select>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Quality Preset
+                      </label>
+                      {profile?.subscription_tier === 'free' && (
+                        <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <Lock className="h-3 w-3" />
+                          Upgrade for HD quality
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={options.quality}
+                        onChange={(e) => {
+                          if (profile?.subscription_tier === 'free') {
+                            toast.info('Quality locked to Standard', {
+                              description: 'Upgrade to Pro for HD quality options',
+                              action: {
+                                label: 'Upgrade',
+                                onClick: () => window.location.href = '/pricing'
+                              }
+                            })
+                            return
+                          }
+                          setOptions({ ...options, quality: e.target.value as "fast" | "good" | "best" })
+                          toast.success('Quality preset updated')
+                        }}
+                        disabled={profile?.subscription_tier === 'free'}
+                        className={`w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                          profile?.subscription_tier === 'free' ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <option value="fast">
+                          {profile?.subscription_tier === 'free' ? 'Standard (Free Tier)' : 'Fast (Lower quality, faster processing)'}
+                        </option>
+                        <option value="good" disabled={profile?.subscription_tier === 'free'}>
+                          {profile?.subscription_tier === 'free' ? '🔒 Good (Pro Only)' : 'Good (Balanced - Recommended)'}
+                        </option>
+                        <option value="best" disabled={profile?.subscription_tier === 'free'}>
+                          {profile?.subscription_tier === 'free' ? '🔒 Best (Pro Only)' : 'Best (Higher quality, slower processing)'}
+                        </option>
+                      </select>
+                      {profile?.subscription_tier === 'free' && (
+                        <div className="absolute inset-y-0 right-10 flex items-center pointer-events-none">
+                          <Lock className="h-4 w-4 text-slate-400" />
+                        </div>
+                      )}
+                    </div>
+                    {profile?.subscription_tier === 'free' && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Free tier uses standard quality. <a href="/pricing" className="text-green-600 dark:text-green-400 hover:underline">Upgrade to Pro</a> for HD quality options.
+                      </p>
+                    )}
                   </div>
 
                   {/* Chroma Tolerance */}

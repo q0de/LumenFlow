@@ -277,7 +277,7 @@ export default function RootLayout({
             closeButton={false}
             duration={3000}
           />
-          <main className="flex-1 pb-64 md:pb-48">
+          <main className="flex-1 pb-8">
             {children}
           </main>
           <Footer />
