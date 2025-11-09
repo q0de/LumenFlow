@@ -1,4 +1,4 @@
-import { toast as sonnerToast } from "sonner"
+import { toast as sonnerToast, ExternalToast } from "sonner"
 
 // Track recent toasts to prevent duplicates
 const recentToasts = new Map<string, number>()
@@ -25,28 +25,28 @@ function shouldShowToast(message: string): boolean {
 }
 
 export const toast = {
-  success: (message: string, options?: { description?: string }) => {
+  success: (message: string, options?: ExternalToast) => {
     const key = `success:${message}:${options?.description || ''}`
     if (shouldShowToast(key)) {
       return sonnerToast.success(message, options)
     }
   },
   
-  error: (message: string, options?: { description?: string }) => {
+  error: (message: string, options?: ExternalToast) => {
     const key = `error:${message}:${options?.description || ''}`
     if (shouldShowToast(key)) {
       return sonnerToast.error(message, options)
     }
   },
   
-  info: (message: string, options?: { description?: string }) => {
+  info: (message: string, options?: ExternalToast) => {
     const key = `info:${message}:${options?.description || ''}`
     if (shouldShowToast(key)) {
       return sonnerToast.info(message, options)
     }
   },
   
-  warning: (message: string, options?: { description?: string }) => {
+  warning: (message: string, options?: ExternalToast) => {
     const key = `warning:${message}:${options?.description || ''}`
     if (shouldShowToast(key)) {
       return sonnerToast.warning(message, options)
