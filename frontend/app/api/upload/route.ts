@@ -52,7 +52,15 @@ export async function POST(request: NextRequest) {
     const jobId = uuidv4()
     const filename = file.name
     const fileExtension = filename.split(".").pop()
-    const baseFilename = filename.replace(/\.[^/.]+$/, "")
+    // Sanitize filename: remove special characters, replace spaces with hyphens
+    const sanitizedFilename = filename
+      .replace(/\.[^/.]+$/, "") // Remove extension
+      .replace(/[^\w\s-]/g, "") // Remove special chars except spaces, hyphens, underscores
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .toLowerCase()
+    
+    const baseFilename = sanitizedFilename || `video-${Date.now()}`
 
     // Ensure directories exist
     // On Render: use persistent disk (default /data, configurable via STORAGE_PATH)
