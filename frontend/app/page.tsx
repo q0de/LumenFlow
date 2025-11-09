@@ -34,7 +34,7 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
-  autoDetectColor: boolean // Auto-detect green screen color from video
+  autoDetectColor?: boolean // Auto-detect green screen color from video (optional for backwards compatibility)
   enableCodecOverride: boolean
   codec: "vp8" | "vp9"
   enableResize: boolean

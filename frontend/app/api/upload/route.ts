@@ -12,7 +12,7 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
-  autoDetectColor: boolean
+  autoDetectColor?: boolean // Optional - defaults to false
   enableCodecOverride: boolean
   codec: "vp8" | "vp9"
   enableResize: boolean
@@ -258,7 +258,7 @@ async function processVideo(
       
       // Auto-detect green screen color if enabled
       let detectedColor = options.backgroundColor
-      if (options.autoDetectColor) {
+      if (options.autoDetectColor === true) {
         detectedColor = await detectGreenScreenColor(inputPath)
         process.stderr.write(`🎨 Using auto-detected color: ${detectedColor}\n`)
       } else {
