@@ -311,7 +311,7 @@ export default function Home() {
 
     for (const file of acceptedFiles) {
       if (!file.type.startsWith("video/")) {
-        toast.error(`${file.name} is not a video file`, { description: 'Please upload MP4, MOV, or AVI files' })
+        toast.error(`${file.name} is not a video file`, { description: 'Please upload MP4, MOV, AVI, or WebM files' })
         continue
       }
 
@@ -597,7 +597,7 @@ export default function Home() {
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
-      "video/*": [".mp4", ".mov", ".avi"],
+      "video/*": [".mp4", ".mov", ".avi", ".webm"],
     },
     maxSize: 100 * 1024 * 1024, // 100MB
     noClick: false, // Allow clicking
@@ -1011,7 +1011,7 @@ export default function Home() {
                   Drag & drop your green-screen video
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-500">
-                  or click to browse (MP4, MOV, AVI up to 100MB)
+                  or click to browse (MP4, MOV, AVI, WebM up to 100MB)
                 </p>
               </>
             )}
