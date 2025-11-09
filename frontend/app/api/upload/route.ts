@@ -86,8 +86,16 @@ export async function POST(request: NextRequest) {
     // Check authentication (optional for first upload)
     process.stderr.write('🔐 Checking authentication...\n')
     
+    // Get auth token from header
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    process.stderr.write(`🔑 Auth header present: ${!!authHeader}\n`)
+    process.stderr.write(`🔑 Token present: ${!!token}\n`)
+    
     const supabase = createServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = token 
+      ? await supabase.auth.getUser(token)
+      : { data: { user: null } }
     
     let userId: string | null = null
     let userTier: "free" | "pro" = "free"
