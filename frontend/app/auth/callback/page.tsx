@@ -14,6 +14,9 @@ export default function AuthCallbackPage() {
         console.log('🔄 OAuth callback started')
         console.log('📍 Current URL:', window.location.href)
         
+        // Small delay to ensure URL params are fully loaded
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         // Check for hash fragment tokens (implicit flow)
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
@@ -84,7 +87,10 @@ export default function AuthCallbackPage() {
           
           if (error && !error.message.includes('Timeout')) {
             console.error('❌ Error exchanging code for session:', error)
-            toast.error('Login failed', { description: error.message })
+            // Don't show toast for "code verifier" errors - these are transient
+            if (!error.message.includes('code verifier') && !error.message.includes('auth code')) {
+              toast.error('Login failed', { description: error.message })
+            }
             router.push('/')
             return
           }
