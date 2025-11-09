@@ -12,6 +12,7 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
+  autoDetectColor: boolean
   enableCodecOverride: boolean
   codec: "vp8" | "vp9"
   enableResize: boolean
@@ -163,6 +164,58 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Auto-detect dominant green color from video
+async function detectGreenScreenColor(inputPath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    process.stderr.write(`🎨 Auto-detecting green screen color from video...\n`)
+    
+    // Extract first frame and analyze colors
+    // Use FFmpeg to get pixel data from center region (where green screen usually is)
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', inputPath,
+      '-vf', 'crop=100:100,scale=1:1', // Sample center 100x100 area, scale to 1 pixel (average color)
+      '-vframes', '1',
+      '-f', 'rawvideo',
+      '-pix_fmt', 'rgb24',
+      'pipe:1'
+    ])
+
+    let colorData = Buffer.alloc(0)
+
+    ffmpeg.stdout.on('data', (data: Buffer) => {
+      colorData = Buffer.concat([colorData, data])
+    })
+
+    ffmpeg.stderr.on('data', (data: Buffer) => {
+      // Suppress FFmpeg stderr for color detection
+    })
+
+    ffmpeg.on('close', (code) => {
+      if (code !== 0 || colorData.length < 3) {
+        process.stderr.write(`⚠️ Color detection failed, using default green\n`)
+        resolve('#00FF00') // Fallback to default
+        return
+      }
+
+      // Get RGB values from the averaged pixel
+      const r = colorData[0]
+      const g = colorData[1]
+      const b = colorData[2]
+
+      // Convert to hex
+      const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase()
+      
+      process.stderr.write(`✅ Detected green screen color: ${hex} (R:${r}, G:${g}, B:${b})\n`)
+      resolve(hex)
+    })
+
+    ffmpeg.on('error', (error) => {
+      process.stderr.write(`⚠️ Color detection error: ${error.message}, using default\n`)
+      resolve('#00FF00') // Fallback
+    })
+  })
+}
+
 async function processVideo(
   jobId: string,
   inputPath: string,
@@ -202,7 +255,17 @@ async function processVideo(
         : 4  // 4 = fast for free tier
       
       process.stderr.write(`🎬 Quality settings - Tier: ${userTier}, CRF: ${crf}, Deadline: ${deadline}, CPU: ${cpuUsed}, Selected: ${options.quality}\n`)
-      const bgColor = options.backgroundColor.replace("#", "")
+      
+      // Auto-detect green screen color if enabled
+      let detectedColor = options.backgroundColor
+      if (options.autoDetectColor) {
+        detectedColor = await detectGreenScreenColor(inputPath)
+        process.stderr.write(`🎨 Using auto-detected color: ${detectedColor}\n`)
+      } else {
+        process.stderr.write(`🎨 Using manual color: ${detectedColor}\n`)
+      }
+      
+      const bgColor = detectedColor.replace("#", "")
       const tolerance = options.chromaTolerance
 
       // OPTIMIZED: Single-pass processing (combines chroma key + WEBM conversion)

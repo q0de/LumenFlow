@@ -34,6 +34,7 @@ interface ProcessingOptions {
   chromaTolerance: number
   processingSpeed: number
   backgroundColor: string
+  autoDetectColor: boolean // Auto-detect green screen color from video
   enableCodecOverride: boolean
   codec: "vp8" | "vp9"
   enableResize: boolean
@@ -52,6 +53,7 @@ const defaultOptions: ProcessingOptions = {
   chromaTolerance: 0.3,
   processingSpeed: 4,
   backgroundColor: "#00FF00",
+  autoDetectColor: false, // OFF by default - user must enable
   enableCodecOverride: false,
   codec: "vp8",
   enableResize: false,
@@ -893,14 +895,42 @@ export default function Home() {
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                       Green Screen Color
                     </label>
-                    <div className="flex items-center gap-3">
+                    
+                    {/* Auto-detect checkbox */}
+                    <div className="mb-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={options.autoDetectColor}
+                          onChange={(e) => {
+                            setOptions({ ...options, autoDetectColor: e.target.checked })
+                            if (e.target.checked) {
+                              toast.success('Auto-detect enabled', {
+                                description: 'The green screen color will be detected from your video'
+                              })
+                            }
+                          }}
+                          className="w-4 h-4 text-green-600 border-slate-300 rounded focus:ring-green-500"
+                        />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">
+                          Auto-detect green screen color from video
+                        </span>
+                      </label>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 ml-6">
+                        Automatically finds the exact green color in your video for better accuracy
+                      </p>
+                    </div>
+
+                    {/* Manual color picker (disabled when auto-detect is on) */}
+                    <div className={`flex items-center gap-3 ${options.autoDetectColor ? 'opacity-50' : ''}`}>
                       <input
                         type="color"
                         value={options.backgroundColor}
                         onChange={(e) =>
                           setOptions({ ...options, backgroundColor: e.target.value })
                         }
-                        className="h-10 w-20 rounded border border-slate-300 dark:border-slate-600 cursor-pointer"
+                        disabled={options.autoDetectColor}
+                        className="h-10 w-20 rounded border border-slate-300 dark:border-slate-600 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <input
                         type="text"
@@ -908,13 +938,16 @@ export default function Home() {
                         onChange={(e) =>
                           setOptions({ ...options, backgroundColor: e.target.value })
                         }
-                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        disabled={options.autoDetectColor}
+                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="#00FF00"
                       />
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Use if your green screen isn't pure green (#00FF00)
-                    </p>
+                    {!options.autoDetectColor && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Manually set color if your green screen isn't pure green (#00FF00)
+                      </p>
+                    )}
                   </div>
 
                   {/* Codec Selection */}
