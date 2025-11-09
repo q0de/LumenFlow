@@ -412,7 +412,14 @@ export default function Home() {
   // Polling fallback function with progress smoothing
   const pollJobStatus = useCallback(async (serverJobId: string, clientJobId: string) => {
     try {
-      const response = await fetch(`/api/jobs/${serverJobId}`)
+      // Get auth token for polling
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      
+      const response = await fetch(`/api/jobs/${serverJobId}`, { headers })
       if (response.ok) {
         const job = await response.json()
         
