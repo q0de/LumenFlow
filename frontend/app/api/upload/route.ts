@@ -75,8 +75,24 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
     await writeFile(inputPath, buffer)
 
-    // Get user info if payments enabled
-    let userId: string | null = null
+    // REQUIRE AUTHENTICATION - No anonymous uploads
+    process.stderr.write('🔐 Checking authentication...\n')
+    
+    const supabase = createServerClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      process.stderr.write(`❌ Authentication required - No user found\n`)
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in to upload videos." },
+        { status: 401 }
+      )
+    }
+
+    process.stderr.write(`✅ User authenticated: ${user.email}\n`)
+
+    // Get user info for tier and watermark settings
+    let userId: string = user.id
     let userTier: "free" | "pro" = "free"
     let addWatermark = false
 
@@ -85,11 +101,7 @@ export async function POST(request: NextRequest) {
     process.stderr.write(`💳 Payments enabled?: ${process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true'}\n`)
 
     if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true') {
-      const supabase = createServerClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      process.stderr.write(`👤 User found: ${!!user} ${user?.email || 'N/A'}\n`)
-      
+      // User is already authenticated, just get profile
       if (user) {
         userId = user.id
         

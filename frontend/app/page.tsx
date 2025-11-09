@@ -293,6 +293,19 @@ export default function Home() {
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    // Require authentication before upload
+    if (!user) {
+      toast.error('Sign in required', {
+        description: 'Please sign in to upload videos',
+        action: {
+          label: 'Sign In',
+          onClick: () => setShowLogin(true)
+        }
+      })
+      setShowLogin(true)
+      return
+    }
+
     // Check usage before processing
     if (!checkUsageBeforeUpload()) {
       return
