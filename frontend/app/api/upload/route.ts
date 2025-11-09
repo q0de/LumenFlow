@@ -196,8 +196,30 @@ async function processVideo(
         `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
         ...(options.enableResize ? [`scale=${options.outputWidth}:-1`] : []),
         ...(addWatermark ? [
-          // Watermark at bottom center with semi-transparent background box
-          `drawtext=text='GreenScreenRemover.com':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=h-th-20:box=1:boxcolor=black@0.6:boxborderw=10`
+          // Diagonal repeating watermark pattern (waterfall effect)
+          // Multiple rows and columns of semi-transparent text
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=50:y=50`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=50:y=200`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=50:y=350`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=50:y=500`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=50:y=650`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=50:y=800`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=400:y=125`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=400:y=275`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=400:y=425`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=400:y=575`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=400:y=725`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=750:y=50`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=750:y=200`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=750:y=350`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=750:y=500`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=750:y=650`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=750:y=800`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=1100:y=125`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=1100:y=275`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=1100:y=425`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=1100:y=575`,
+          `drawtext=text='GreenScreenRemover.com':fontsize=28:fontcolor=white@0.25:x=1100:y=725`
         ] : []),
         'format=yuva420p'
       ]
