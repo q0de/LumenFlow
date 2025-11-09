@@ -177,6 +177,8 @@ async function processVideo(
     try {
       // Map quality to CRF values - FREE TIER GETS LOWER QUALITY
       // Lower CRF = better quality, Higher CRF = more compression
+      // CRF scale: 0 (lossless) to 63 (worst quality)
+      // Recommended: 15-35 for good quality, 40+ for heavy compression
       const qualityMap = userTier === "free" 
         ? {
             fast: 45,   // Free tier: heavily compressed
@@ -184,9 +186,9 @@ async function processVideo(
             best: 45    // Free tier: locked to same quality
           }
         : {
-            fast: 40,   // Pro: normal fast quality
-            good: 30,   // Pro: good quality
-            best: 20    // Pro: best quality (minimal compression)
+            fast: 30,   // Pro: good quality, faster encode
+            good: 20,   // Pro: high quality (recommended)
+            best: 10    // Pro: excellent quality, minimal compression
           }
 
       const crf = qualityMap[options.quality]
