@@ -293,22 +293,16 @@ export default function Home() {
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    // Require authentication before upload
-    if (!user) {
-      toast.error('Sign in required', {
-        description: 'Please sign in to upload videos',
-        action: {
-          label: 'Sign In',
-          onClick: () => setShowLogin(true)
-        }
-      })
-      setShowLogin(true)
+    // Check usage before processing (only for logged-in users)
+    if (user && !checkUsageBeforeUpload()) {
       return
     }
 
-    // Check usage before processing
-    if (!checkUsageBeforeUpload()) {
-      return
+    // Show trial message for anonymous users
+    if (!user) {
+      toast.info('Try it free!', { 
+        description: 'Sign up after processing to download your video' 
+      })
     }
 
     toast.success(`${acceptedFiles.length} video(s) added to queue`, { 
@@ -1155,14 +1149,30 @@ export default function Home() {
                         )}
                         
                         <div className="flex items-center gap-3 flex-wrap">
-                          <a
-                            href={job.downloadUrl}
-                            download
+                          <button
+                            onClick={() => {
+                              if (!user) {
+                                toast.error('Sign up to download', {
+                                  description: 'Create a free account to download your processed video',
+                                  action: {
+                                    label: 'Sign Up',
+                                    onClick: () => setShowLogin(true)
+                                  }
+                                })
+                                setShowLogin(true)
+                                return
+                              }
+                              const a = document.createElement('a')
+                              a.href = job.downloadUrl!
+                              a.download = job.filename.replace(/\.[^/.]+$/, ".webm")
+                              a.click()
+                              toast.success('Downloading...', { description: job.filename })
+                            }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                           >
                             <Download className="h-4 w-4" />
-                            Download WEBM
-                          </a>
+                            {user ? 'Download WEBM' : 'Sign Up to Download'}
+                          </button>
                           <button
                             onClick={() => copyDownloadLink(job.downloadUrl!, job.filename)}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors"

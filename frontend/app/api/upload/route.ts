@@ -75,64 +75,47 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
     await writeFile(inputPath, buffer)
 
-    // REQUIRE AUTHENTICATION - No anonymous uploads
+    // Check authentication (optional for first upload)
     process.stderr.write('🔐 Checking authentication...\n')
     
     const supabase = createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (authError || !user) {
-      process.stderr.write(`❌ Authentication required - No user found\n`)
-      return NextResponse.json(
-        { error: "Authentication required. Please sign in to upload videos." },
-        { status: 401 }
-      )
-    }
-
-    process.stderr.write(`✅ User authenticated: ${user.email}\n`)
-
-    // Get user info for tier and watermark settings
-    let userId: string = user.id
+    let userId: string | null = null
     let userTier: "free" | "pro" = "free"
-    let addWatermark = false
+    let addWatermark = true // Always watermark for free/anonymous users
 
-    process.stderr.write('🎨 WATERMARK CHECK START\n')
-    process.stderr.write(`💳 ENABLE_PAYMENTS: ${process.env.NEXT_PUBLIC_ENABLE_PAYMENTS}\n`)
-    process.stderr.write(`💳 Payments enabled?: ${process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true'}\n`)
-
-    if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true') {
-      // User is already authenticated, just get profile
-      if (user) {
-        userId = user.id
+    if (user) {
+      process.stderr.write(`✅ User authenticated: ${user.email}\n`)
+      userId = user.id
+      
+      // Get user profile to check tier
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single()
+      
+      process.stderr.write(`📊 Profile: ${JSON.stringify(profile)}\n`)
+      
+      if (profile) {
+        userTier = profile.subscription_tier as "free" | "pro"
+        addWatermark = shouldAddWatermark(userTier)
         
-        // Get user profile to check tier
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single()
+        process.stderr.write(`🎯 User tier: ${userTier}\n`)
+        process.stderr.write(`🖼️ Add watermark?: ${addWatermark}\n`)
         
-        process.stderr.write(`📊 Profile: ${JSON.stringify(profile)}\n`)
-        
-        if (profile) {
-          userTier = profile.subscription_tier as "free" | "pro"
-          addWatermark = shouldAddWatermark(userTier)
-          
-          process.stderr.write(`🎯 User tier: ${userTier}\n`)
-          process.stderr.write(`🖼️ Add watermark?: ${addWatermark}\n`)
-          
-          // Increment usage count
-          await incrementUsage(user.id).catch(err => {
-            console.error('Failed to increment usage:', err)
-          })
-        }
+        // Increment usage count for authenticated users
+        await incrementUsage(user.id).catch(err => {
+          console.error('Failed to increment usage:', err)
+        })
       }
     } else {
-      console.log('⚠️ Payments disabled - defaulting to FREE tier with watermark')
-      addWatermark = true // Add watermark when payments are disabled
+      process.stderr.write(`👤 Anonymous user - allowing trial upload\n`)
+      addWatermark = true // Always watermark for anonymous users
     }
 
-    console.log('🎨 FINAL DECISION: addWatermark =', addWatermark)
+    process.stderr.write(`🎨 FINAL DECISION: addWatermark = ${addWatermark}, userId = ${userId || 'anonymous'}\n`)
 
     // Initialize job in Supabase with user ownership
     await setJob(jobId, {
