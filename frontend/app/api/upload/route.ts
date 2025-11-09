@@ -186,17 +186,24 @@ async function processVideo(
             best: 45    // Free tier: locked to same quality
           }
         : {
-            fast: 30,   // Pro: good quality, faster encode
-            good: 20,   // Pro: high quality (recommended)
-            best: 10    // Pro: excellent quality, minimal compression
+            fast: 15,   // Pro: high quality
+            good: 10,   // Pro: excellent quality (recommended)
+            best: 4     // Pro: near-lossless quality
           }
 
       const crf = qualityMap[options.quality]
       
-      process.stderr.write(`🎬 Quality settings - Tier: ${userTier}, CRF: ${crf}, Selected: ${options.quality}\n`)
+      // Pro users get better encoding settings for higher quality
+      // Free users: fast encoding (realtime deadline, cpu-used 4)
+      // Pro users: quality encoding (good deadline, cpu-used 0-1)
+      const deadline = userTier === "pro" ? "good" : "realtime"
+      const cpuUsed = userTier === "pro" 
+        ? (options.quality === "best" ? 0 : 1)  // 0 = slowest/best, 1 = very good
+        : 4  // 4 = fast for free tier
+      
+      process.stderr.write(`🎬 Quality settings - Tier: ${userTier}, CRF: ${crf}, Deadline: ${deadline}, CPU: ${cpuUsed}, Selected: ${options.quality}\n`)
       const bgColor = options.backgroundColor.replace("#", "")
       const tolerance = options.chromaTolerance
-      const speed = options.processingSpeed
 
       // OPTIMIZED: Single-pass processing (combines chroma key + WEBM conversion)
       await setJob(jobId, { status: "processing", progress: 20 })
@@ -257,9 +264,8 @@ async function processVideo(
       const codecLib = (options.enableCodecOverride && options.codec === "vp9") ? "libvpx-vp9" : "libvpx" // VP8 default
       
       // Build FFmpeg command with progress reporting
-      // Optimizations for speed:
-      // - -deadline realtime: prioritize speed over quality
-      // - -cpu-used: higher = faster (already using speed parameter)
+      // Pro users: quality encoding (good deadline, low cpu-used)
+      // Free users: fast encoding (realtime deadline, high cpu-used)
       const ffmpegArgs = [
         '-i', inputPath,
         '-vf', keyFilter,
@@ -267,10 +273,10 @@ async function processVideo(
         '-pix_fmt', 'yuva420p',
         '-auto-alt-ref', '0',
         '-lag-in-frames', '0',
-        '-deadline', 'realtime', // Prioritize speed
+        '-deadline', deadline,
         '-crf', crf.toString(),
         '-b:v', '0',
-        '-cpu-used', speed.toString(),
+        '-cpu-used', cpuUsed.toString(),
         ...(options.enableCodecOverride && options.codec === "vp9" ? ['-row-mt', '1'] : []), // VP9 specific optimization
         '-threads', '8',
         '-an', // No audio
