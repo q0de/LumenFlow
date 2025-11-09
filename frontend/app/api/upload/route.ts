@@ -122,13 +122,14 @@ export async function POST(request: NextRequest) {
 
     console.log('🎨 FINAL DECISION: addWatermark =', addWatermark)
 
-    // Initialize job in Supabase
+    // Initialize job in Supabase with user ownership
     await setJob(jobId, {
       status: "processing",
       progress: 10,
       filename: filename,
       options: options,
       has_watermark: addWatermark,
+      userId: userId, // Associate job with user
     })
 
     // Process video asynchronously with options

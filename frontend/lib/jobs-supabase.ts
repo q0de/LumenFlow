@@ -3,6 +3,7 @@ import { createServerClient } from './supabase'
 
 export interface Job {
   id: string
+  userId?: string | null
   status: "uploading" | "processing" | "completed" | "error"
   progress: number
   error?: string
@@ -32,6 +33,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
 
   return {
     id: data.id,
+    userId: data.user_id,
     status: data.status,
     progress: data.progress,
     error: data.error,
@@ -51,6 +53,7 @@ export async function setJob(jobId: string, job: Partial<Job>): Promise<void> {
     .from('jobs')
     .upsert({
       id: jobId,
+      user_id: job.userId !== undefined ? job.userId : undefined,
       status: job.status,
       progress: job.progress ?? 0,
       error: job.error || null,
