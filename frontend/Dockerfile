@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
-# Install FFmpeg (required for video processing)
-RUN apk add --no-cache ffmpeg bash
+# Install FFmpeg and fonts (required for video processing and watermarks)
+RUN apk add --no-cache ffmpeg bash fontconfig ttf-dejavu
 
 WORKDIR /app
 
