@@ -73,6 +73,8 @@ export async function checkUsageLimit(userId: string): Promise<UsageInfo> {
 export async function incrementUsage(userId: string): Promise<void> {
   const supabase = createServerClient()
 
+  console.log('📊 Incrementing usage for user:', userId)
+
   // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
@@ -99,23 +101,51 @@ export async function incrementUsage(userId: string): Promise<void> {
   const periodStartStr = periodStart.toISOString().split('T')[0]
   const periodEndStr = periodEnd.toISOString().split('T')[0]
 
-  // Increment usage (upsert)
-  const { error } = await supabase
-    .from('usage_limits')
-    .upsert({
-      user_id: userId,
-      period_start: periodStartStr,
-      period_end: periodEndStr,
-      videos_processed: 1,
-      videos_limit: isPro ? 50 : 3,
-    }, {
-      onConflict: 'user_id,period_start',
-      ignoreDuplicates: false,
-    })
+  console.log('📅 Period:', periodStartStr, 'to', periodEndStr)
 
-  if (error) {
-    // If record exists, increment it
-    await supabase.rpc('increment_usage', { p_user_id: userId })
+  // Check if record exists
+  const { data: existing } = await supabase
+    .from('usage_limits')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('period_start', periodStartStr)
+    .single()
+
+  console.log('📊 Existing usage record:', existing)
+
+  if (existing) {
+    // Update existing record - increment by 1
+    const { error } = await supabase
+      .from('usage_limits')
+      .update({
+        videos_processed: existing.videos_processed + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('period_start', periodStartStr)
+
+    if (error) {
+      console.error('❌ Failed to increment usage:', error)
+      throw error
+    }
+    console.log('✅ Usage incremented to:', existing.videos_processed + 1)
+  } else {
+    // Create new record with count of 1
+    const { error } = await supabase
+      .from('usage_limits')
+      .insert({
+        user_id: userId,
+        period_start: periodStartStr,
+        period_end: periodEndStr,
+        videos_processed: 1,
+        videos_limit: isPro ? 50 : 3,
+      })
+
+    if (error) {
+      console.error('❌ Failed to create usage record:', error)
+      throw error
+    }
+    console.log('✅ Usage record created with count: 1')
   }
 }
 

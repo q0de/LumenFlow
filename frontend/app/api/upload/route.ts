@@ -80,9 +80,15 @@ export async function POST(request: NextRequest) {
     let userTier: "free" | "pro" = "free"
     let addWatermark = false
 
+    console.log('🎨 WATERMARK CHECK START')
+    console.log('💳 ENABLE_PAYMENTS:', process.env.NEXT_PUBLIC_ENABLE_PAYMENTS)
+    console.log('💳 Payments enabled?:', process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true')
+
     if (process.env.NEXT_PUBLIC_ENABLE_PAYMENTS === 'true') {
       const supabase = createServerClient()
       const { data: { user } } = await supabase.auth.getUser()
+      
+      console.log('👤 User found:', !!user, user?.email)
       
       if (user) {
         userId = user.id
@@ -94,9 +100,14 @@ export async function POST(request: NextRequest) {
           .eq('id', user.id)
           .single()
         
+        console.log('📊 Profile:', profile)
+        
         if (profile) {
           userTier = profile.subscription_tier as "free" | "pro"
           addWatermark = shouldAddWatermark(userTier)
+          
+          console.log('🎯 User tier:', userTier)
+          console.log('🖼️ Add watermark?:', addWatermark)
           
           // Increment usage count
           await incrementUsage(user.id).catch(err => {
@@ -104,7 +115,12 @@ export async function POST(request: NextRequest) {
           })
         }
       }
+    } else {
+      console.log('⚠️ Payments disabled - defaulting to FREE tier with watermark')
+      addWatermark = true // Add watermark when payments are disabled
     }
+
+    console.log('🎨 FINAL DECISION: addWatermark =', addWatermark)
 
     // Initialize job in Supabase
     await setJob(jobId, {
@@ -186,6 +202,9 @@ async function processVideo(
         'format=yuva420p'
       ]
       const keyFilter = filters.join(',')
+      
+      console.log('🎬 FFmpeg filters:', filters)
+      console.log('🎬 Watermark in filters?:', filters.some(f => f.includes('drawtext')))
       
       // Select codec based on user options (VP8 default, VP9 if overridden)
       const codecLib = (options.enableCodecOverride && options.codec === "vp9") ? "libvpx-vp9" : "libvpx" // VP8 default
