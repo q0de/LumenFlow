@@ -276,18 +276,6 @@ export default function RootLayout({
             richColors 
             closeButton={false}
             duration={3000}
-            toastOptions={{
-              style: {
-                cursor: 'pointer'
-              },
-              onClick: (event) => {
-                // Dismiss toast when clicked
-                const toastElement = (event.target as HTMLElement).closest('[data-sonner-toast]')
-                if (toastElement) {
-                  toastElement.remove()
-                }
-              }
-            }}
           />
           <main className="flex-1 pb-64 md:pb-48">
             {children}
