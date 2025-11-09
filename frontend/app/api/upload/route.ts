@@ -169,11 +169,12 @@ async function detectGreenScreenColor(inputPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     process.stderr.write(`🎨 Auto-detecting green screen color from video...\n`)
     
-    // Extract first frame and analyze colors
-    // Use FFmpeg to get pixel data from center region (where green screen usually is)
+    // Sample from top edge of frame (where green screen is visible, subject usually isn't)
+    // We take the top 150 pixels across the entire width and average them
+    // This avoids sampling the subject in the center
     const ffmpeg = spawn('ffmpeg', [
       '-i', inputPath,
-      '-vf', 'crop=100:100,scale=1:1', // Sample center 100x100 area, scale to 1 pixel (average color)
+      '-vf', 'crop=iw:150:0:0,scale=1:1', // Sample top 150 pixels across full width, average to 1 pixel
       '-vframes', '1',
       '-f', 'rawvideo',
       '-pix_fmt', 'rgb24',
@@ -201,6 +202,13 @@ async function detectGreenScreenColor(inputPath: string): Promise<string> {
       const r = colorData[0]
       const g = colorData[1]
       const b = colorData[2]
+
+      // Validate it's actually green-ish (G should be significantly higher than R and B)
+      if (g < r || g < b || g < 100) {
+        process.stderr.write(`⚠️ Detected color is not green (R:${r}, G:${g}, B:${b}), using default\n`)
+        resolve('#00FF00') // Fallback to default green
+        return
+      }
 
       // Convert to hex
       const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase()
