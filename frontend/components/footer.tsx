@@ -97,12 +97,12 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-4">
               <a 
-                href="https://twitter.com/CRYPT0" 
+                href="https://twitter.com/crypt0e" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-xs text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
               >
-                Twitter
+                @crypt0e
               </a>
               <a 
                 href="mailto:support@greenscreenremover.com"
