@@ -61,6 +61,7 @@ export default function PricingPage() {
       description: "Perfect for trying out the tool",
       features: [
         { text: "3 videos per day", included: true },
+        { text: "Up to 100MB per video", included: true },
         { text: "Standard quality (compressed)", included: true },
         { text: "Watermark on videos", included: true },
         { text: "AI green screen removal", included: true },
@@ -69,6 +70,7 @@ export default function PricingPage() {
         { text: "HD quality", included: false },
         { text: "No watermark", included: false },
         { text: "Unlimited videos", included: false },
+        { text: "Up to 500MB per video", included: false },
       ],
       cta: "Get Started",
       popular: false,
@@ -80,6 +82,7 @@ export default function PricingPage() {
       description: "For serious creators and game developers",
       features: [
         { text: "Unlimited videos", included: true },
+        { text: "Up to 500MB per video", included: true },
         { text: "HD quality (best compression)", included: true },
         { text: "No watermark", included: true },
         { text: "VP8 & VP9 codec options", included: true },

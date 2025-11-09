@@ -594,12 +594,48 @@ export default function Home() {
     }
   }, [])
 
+  // Dynamic max file size based on subscription tier
+  const maxFileSize = profile?.subscription_tier === 'pro' 
+    ? 500 * 1024 * 1024  // 500MB for Pro
+    : 100 * 1024 * 1024  // 100MB for Free
+
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
+    onDropRejected: (fileRejections) => {
+      fileRejections.forEach(({ file, errors }) => {
+        errors.forEach((error) => {
+          if (error.code === 'file-too-large') {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1)
+            const maxSizeMB = profile?.subscription_tier === 'pro' ? '500MB' : '100MB'
+            
+            if (profile?.subscription_tier !== 'pro') {
+              toast.error(`File too large: ${fileSizeMB}MB`, {
+                description: `Free tier limit is 100MB. Upgrade to Pro for 500MB files.`,
+                action: {
+                  label: 'Upgrade',
+                  onClick: () => {
+                    setUpgradeReason('limit_reached')
+                    setShowUpgrade(true)
+                  }
+                }
+              })
+            } else {
+              toast.error(`File too large: ${fileSizeMB}MB`, {
+                description: `Maximum file size is ${maxSizeMB}`
+              })
+            }
+          } else if (error.code === 'file-invalid-type') {
+            toast.error(`Invalid file type`, {
+              description: 'Please upload MP4, MOV, AVI, or WebM files'
+            })
+          }
+        })
+      })
+    },
     accept: {
       "video/*": [".mp4", ".mov", ".avi", ".webm"],
     },
-    maxSize: 100 * 1024 * 1024, // 100MB
+    maxSize: maxFileSize,
     noClick: false, // Allow clicking
     noKeyboard: false
   })
@@ -1011,7 +1047,7 @@ export default function Home() {
                   Drag & drop your green-screen video
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-500">
-                  or click to browse (MP4, MOV, AVI, WebM up to 100MB)
+                  or click to browse (MP4, MOV, AVI, WebM up to {profile?.subscription_tier === 'pro' ? '500MB' : '100MB'})
                 </p>
               </>
             )}
