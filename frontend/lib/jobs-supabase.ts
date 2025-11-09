@@ -10,6 +10,7 @@ export interface Job {
   outputFilename?: string
   filename?: string
   options?: any
+  has_watermark?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -37,6 +38,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
     outputFilename: data.output_filename,
     filename: data.filename,
     options: data.options,
+    has_watermark: data.has_watermark,
     created_at: data.created_at,
     updated_at: data.updated_at,
     downloadUrl: data.output_filename ? `/api/download/${jobId}` : undefined,
@@ -55,6 +57,7 @@ export async function setJob(jobId: string, job: Partial<Job>): Promise<void> {
       output_filename: job.outputFilename || null,
       filename: job.filename || null,
       options: job.options || null,
+      has_watermark: job.has_watermark ?? null,
     }, {
       onConflict: 'id'
     })
