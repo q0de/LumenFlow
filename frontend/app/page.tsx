@@ -817,13 +817,13 @@ export default function Home() {
                         }`}
                       >
                         <option value="fast">
-                          {profile?.subscription_tier === 'free' ? 'Standard (Free Tier)' : 'Fast (Lower quality, faster processing)'}
+                          {profile?.subscription_tier === 'free' ? 'Standard (Free Tier)' : 'Standard (Good quality, smaller file)'}
                         </option>
                         <option value="good" disabled={profile?.subscription_tier === 'free'}>
-                          {profile?.subscription_tier === 'free' ? '🔒 Good (Pro Only)' : 'Good (Balanced - Recommended)'}
+                          {profile?.subscription_tier === 'free' ? '🔒 High Quality (Pro Only)' : 'High Quality (Recommended)'}
                         </option>
                         <option value="best" disabled={profile?.subscription_tier === 'free'}>
-                          {profile?.subscription_tier === 'free' ? '🔒 Best (Pro Only)' : 'Best (Higher quality, slower processing)'}
+                          {profile?.subscription_tier === 'free' ? '🔒 Maximum Quality (Pro Only)' : 'Maximum Quality (Larger file)'}
                         </option>
                       </select>
                       {profile?.subscription_tier === 'free' && (
