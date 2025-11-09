@@ -23,6 +23,10 @@ interface ProcessingJob {
   thumbnail?: string // Video thumbnail
   startTime?: number // Track when processing started
   has_watermark?: boolean // Whether video has watermark
+  fileSize?: number // File size in bytes
+  duration?: number // Video duration in seconds
+  resolution?: string // Video resolution (e.g., "1920x1080")
+  format?: string // File format/extension
 }
 
 interface ProcessingOptions {
@@ -229,6 +233,43 @@ export default function Home() {
     })
   }
 
+  // Extract video metadata
+  const extractVideoMetadata = (file: File): Promise<{ duration: number, resolution: string }> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.muted = true
+      
+      video.onloadedmetadata = () => {
+        const duration = Math.round(video.duration)
+        const resolution = `${video.videoWidth}x${video.videoHeight}`
+        URL.revokeObjectURL(video.src)
+        resolve({ duration, resolution })
+      }
+      
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src)
+        reject(new Error('Failed to load video metadata'))
+      }
+      
+      video.src = URL.createObjectURL(file)
+    })
+  }
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  // Format duration for display
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
   // Save to recent videos
   const saveToRecent = (filename: string, downloadUrl: string, thumbnail?: string) => {
     const recent: RecentVideo = {
@@ -241,6 +282,14 @@ export default function Home() {
     const updated = [recent, ...recentVideos.slice(0, 9)] // Keep last 10
     setRecentVideos(updated)
     localStorage.setItem("recent-videos", JSON.stringify(updated))
+  }
+
+  // Remove from recent videos
+  const removeFromRecent = (index: number) => {
+    const updated = recentVideos.filter((_, i) => i !== index)
+    setRecentVideos(updated)
+    localStorage.setItem("recent-videos", JSON.stringify(updated))
+    toast.success('Removed from recent videos')
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -269,13 +318,31 @@ export default function Home() {
         console.error('Failed to generate thumbnail:', e)
       }
 
+      // Extract video metadata
+      let duration: number | undefined
+      let resolution: string | undefined
+      try {
+        const metadata = await extractVideoMetadata(file)
+        duration = metadata.duration
+        resolution = metadata.resolution
+      } catch (e) {
+        console.error('Failed to extract video metadata:', e)
+      }
+
+      // Get file extension
+      const format = file.name.split('.').pop()?.toUpperCase()
+
       const newJob: ProcessingJob = {
         id: jobId,
         filename: file.name,
         status: "uploading",
         progress: 0,
         thumbnail,
-        startTime: Date.now()
+        startTime: Date.now(),
+        fileSize: file.size,
+        duration,
+        resolution,
+        format
       }
 
       setJobs((prev) => [...prev, newJob])
@@ -931,7 +998,7 @@ export default function Home() {
                   )}
                   
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-2">
                       <Video className="h-5 w-5 text-slate-400" />
                       <span className="font-medium text-slate-900 dark:text-slate-100">
                         {job.filename}
@@ -950,6 +1017,26 @@ export default function Home() {
                         <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
                       )}
                     </div>
+
+                    {/* Video metadata */}
+                    {(job.fileSize || job.duration || job.resolution || job.format) && (
+                      <div className="flex flex-wrap items-center gap-3 mb-4 text-xs text-slate-500 dark:text-slate-400">
+                        {job.format && (
+                          <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded">
+                            {job.format}
+                          </span>
+                        )}
+                        {job.fileSize && (
+                          <span>{formatFileSize(job.fileSize)}</span>
+                        )}
+                        {job.duration && (
+                          <span>{formatDuration(job.duration)}</span>
+                        )}
+                        {job.resolution && (
+                          <span>{job.resolution}</span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Progress Bar */}
                     {(job.status === "uploading" || job.status === "processing") && (
@@ -1100,6 +1187,18 @@ export default function Home() {
                   transition={{ delay: idx * 0.1 }}
                   className="relative group cursor-pointer bg-white dark:bg-slate-800 rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all"
                 >
+                  {/* Remove button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeFromRecent(idx)
+                    }}
+                    className="absolute top-2 right-2 z-10 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+
                   {video.thumbnail ? (
                     <img
                       src={video.thumbnail}

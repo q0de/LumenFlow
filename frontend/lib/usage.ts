@@ -45,7 +45,7 @@ export async function checkUsageLimit(userId: string): Promise<UsageInfo> {
     .single()
 
   let videosProcessed = 0
-  const videosLimit = isPro ? 50 : 5
+  const videosLimit = isPro ? 50 : 3
 
   if (!usage && !usageError) {
     // Create new usage record
@@ -107,7 +107,7 @@ export async function incrementUsage(userId: string): Promise<void> {
       period_start: periodStartStr,
       period_end: periodEndStr,
       videos_processed: 1,
-      videos_limit: isPro ? 50 : 5,
+      videos_limit: isPro ? 50 : 3,
     }, {
       onConflict: 'user_id,period_start',
       ignoreDuplicates: false,
