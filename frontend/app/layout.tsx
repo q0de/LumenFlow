@@ -1,11 +1,18 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import localFont from "next/font/local"
 import "./globals.css"
 import { AuthProvider } from "@/lib/auth-context"
 import { Footer } from "@/components/footer"
 import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
+
+const calafia = localFont({
+  src: './fonts/Calafia-Regular.otf',
+  variable: '--font-calafia',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.greenscreenremover.com'),
@@ -206,7 +213,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en">
+    <html lang="en" className={calafia.variable}>
       <head>
         {/* Primary Structured Data */}
         <script
