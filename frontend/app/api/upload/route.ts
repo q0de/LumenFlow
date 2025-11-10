@@ -292,10 +292,10 @@ async function processVideo(
       // Using chromakey filter (more reliable than colorkey)
       // similarity: 0.0-1.0 (how similar to key color, higher = removes more)
       // blend: 0.0-1.0 (edge blending, lower = sharper edges)
-      // Map tolerance (0-1) to similarity range (0.15-0.5) for balanced green removal
-      // Lower range prevents removing the subject
-      const similarity = 0.15 + (tolerance * 0.35) // Range: 0.15 to 0.5 (balanced)
-      const blend = 0.1 // Moderate blend for smoother edges
+      // Map tolerance (0-1) to similarity range for better green removal
+      // Match client-side preview behavior more closely
+      const similarity = Math.min(0.6, tolerance * 2) // More aggressive, range: 0-0.6
+      const blend = 0.05 // Sharper edges for cleaner removal
       
       // Use chromakey filter - creates alpha channel automatically
       // chromakey=color:similarity:blend

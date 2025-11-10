@@ -1397,10 +1397,10 @@ export default function Home() {
                             className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700"
                           >
                             <div className="mb-3">
-                              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
                                 Transparency Test
                               </h3>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                              <p className="text-sm text-slate-600 dark:text-slate-400">
                                 The checkerboard background should show through transparent areas. If you see green, adjust chroma tolerance.
                               </p>
                             </div>
