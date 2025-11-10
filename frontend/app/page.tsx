@@ -74,6 +74,13 @@ export default function Home() {
   const [recentVideos, setRecentVideos] = useState<RecentVideo[]>([])
   const [isDarkMode, setIsDarkMode] = useState(false)
   
+  // Preview state
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewOriginal, setPreviewOriginal] = useState<string | null>(null)
+  const [previewProcessed, setPreviewProcessed] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
+  
   // Progress smoothing - track last update time for interpolation
   const progressTimestampsRef = useRef<Map<string, { progress: number, timestamp: number }>>(new Map())
 
@@ -258,6 +265,90 @@ export default function Home() {
     })
   }
 
+  // Generate preview with chroma key applied
+  const generatePreview = async (file: File, opts: ProcessingOptions): Promise<{ original: string, processed: string }> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.muted = true
+      
+      video.onloadeddata = () => {
+        // Seek to 10% into video or 1 second, whichever is less
+        video.currentTime = Math.min(1, video.duration * 0.1)
+      }
+      
+      video.onseeked = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+        
+        // Draw original frame
+        ctx.drawImage(video, 0, 0)
+        const originalDataUrl = canvas.toDataURL('image/png')
+        
+        // Apply chroma key
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const data = imageData.data
+        
+        // Parse background color
+        const bgColor = opts.backgroundColor.replace('#', '')
+        const targetR = parseInt(bgColor.substr(0, 2), 16)
+        const targetG = parseInt(bgColor.substr(2, 2), 16)
+        const targetB = parseInt(bgColor.substr(4, 2), 16)
+        
+        // Apply chroma key algorithm
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i]
+          const g = data[i + 1]
+          const b = data[i + 2]
+          
+          // Calculate color distance (normalized to 0-1)
+          const distance = Math.sqrt(
+            Math.pow(r - targetR, 2) +
+            Math.pow(g - targetG, 2) +
+            Math.pow(b - targetB, 2)
+          ) / 441.67 // Max distance = sqrt(3*255^2)
+          
+          // If within tolerance, make transparent with smooth falloff
+          if (distance < opts.chromaTolerance) {
+            data[i + 3] = 0 // Fully transparent
+          } else if (distance < opts.chromaTolerance + 0.1) {
+            // Smooth edge blending
+            const blend = (distance - opts.chromaTolerance) / 0.1
+            data[i + 3] = Math.floor(data[i + 3] * blend)
+          }
+        }
+        
+        // Clear canvas and draw checkerboard background
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        
+        // Draw checkerboard pattern
+        const checkSize = 20
+        for (let y = 0; y < canvas.height; y += checkSize) {
+          for (let x = 0; x < canvas.width; x += checkSize) {
+            ctx.fillStyle = ((x / checkSize + y / checkSize) % 2) ? '#e5e7eb' : '#ffffff'
+            ctx.fillRect(x, y, checkSize, checkSize)
+          }
+        }
+        
+        // Draw processed image with transparency
+        ctx.putImageData(imageData, 0, 0)
+        const processedDataUrl = canvas.toDataURL('image/png')
+        
+        URL.revokeObjectURL(video.src)
+        resolve({ original: originalDataUrl, processed: processedDataUrl })
+      }
+      
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src)
+        reject(new Error('Failed to load video for preview'))
+      }
+      
+      video.src = URL.createObjectURL(file)
+    })
+  }
+
   // Format file size for display
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B'
@@ -295,11 +386,42 @@ export default function Home() {
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return
+    
+    const file = acceptedFiles[0] // Only handle first file for preview
+    
+    if (!file.type.startsWith("video/")) {
+      toast.error(`${file.name} is not a video file`, { description: 'Please upload MP4, MOV, AVI, or WebM files' })
+      return
+    }
+
     // Check usage before processing (only for logged-in users)
     if (user && !checkUsageBeforeUpload()) {
       return
     }
 
+    // Store selected file and generate preview
+    setSelectedFile(file)
+    setIsGeneratingPreview(true)
+    
+    try {
+      toast.info('Generating preview...', { duration: 1500 })
+      const { original, processed } = await generatePreview(file, options)
+      setPreviewOriginal(original)
+      setPreviewProcessed(processed)
+      setShowPreview(true)
+      setIsGeneratingPreview(false)
+    } catch (error) {
+      console.error('Preview generation failed:', error)
+      toast.error('Preview failed', { description: 'Proceeding with upload anyway' })
+      setIsGeneratingPreview(false)
+      // Continue with upload even if preview fails
+      handleUpload(file)
+    }
+  }, [options, user, checkUsageBeforeUpload])
+
+  // Separate function to handle actual upload after preview approval
+  const handleUpload = useCallback(async (file: File) => {
     // Show trial message for anonymous users
     if (!user) {
       toast.info('Try it free!', { 
@@ -307,104 +429,97 @@ export default function Home() {
       })
     }
 
-    toast.success(`${acceptedFiles.length} video(s) added to queue`, { 
-      description: 'Starting upload...' 
+    toast.success('Processing video', { 
+      description: 'This may take a few moments...' 
     })
 
-    for (const file of acceptedFiles) {
-      if (!file.type.startsWith("video/")) {
-        toast.error(`${file.name} is not a video file`, { description: 'Please upload MP4, MOV, AVI, or WebM files' })
-        continue
-      }
-
-      const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      
-      // Generate thumbnail
-      let thumbnail: string | undefined
-      try {
-        thumbnail = await generateThumbnail(file)
-      } catch (e) {
-        console.error('Failed to generate thumbnail:', e)
-      }
-
-      // Extract video metadata
-      let duration: number | undefined
-      let resolution: string | undefined
-      try {
-        const metadata = await extractVideoMetadata(file)
-        duration = metadata.duration
-        resolution = metadata.resolution
-      } catch (e) {
-        console.error('Failed to extract video metadata:', e)
-      }
-
-      // Get file extension
-      const format = file.name.split('.').pop()?.toUpperCase()
-
-      const newJob: ProcessingJob = {
-        id: jobId,
-        filename: file.name,
-        status: "uploading",
-        progress: 0,
-        thumbnail,
-        startTime: Date.now(),
-        fileSize: file.size,
-        duration,
-        resolution,
-        format
-      }
-
-      setJobs((prev) => [...prev, newJob])
-      setIsUploading(true)
-      
-      toast.promise(
-        (async () => {
-          // Upload file with options
-          const formData = new FormData()
-          formData.append("file", file)
-          formData.append("options", JSON.stringify(options))
-
-          // Get auth token if user is logged in
-          const { data: { session } } = await supabase.auth.getSession()
-          const headers: HeadersInit = {}
-          if (session?.access_token) {
-            headers['Authorization'] = `Bearer ${session.access_token}`
-          }
-
-          const uploadResponse = await fetch("/api/upload", {
-            method: "POST",
-            headers,
-            body: formData,
-          })
-
-          if (!uploadResponse.ok) {
-            throw new Error("Upload failed")
-          }
-
-          const { jobId: serverJobId } = await uploadResponse.json()
-
-          // Update job status and store serverJobId
-          setJobs((prev) =>
-            prev.map((job) =>
-              job.id === jobId
-                ? { ...job, serverJobId, status: "processing", progress: 10 }
-                : job
-            )
-          )
-
-          // Subscribe to real-time updates
-          subscribeToJob(serverJobId, jobId)
-        })(),
-        {
-          loading: `Uploading ${file.name}...`,
-          success: `Processing ${file.name}`,
-          error: `Failed to upload ${file.name}`,
-        }
-      )
+    const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Generate thumbnail
+    let thumbnail: string | undefined
+    try {
+      thumbnail = await generateThumbnail(file)
+    } catch (e) {
+      console.error('Failed to generate thumbnail:', e)
     }
+
+    // Extract video metadata
+    let duration: number | undefined
+    let resolution: string | undefined
+    try {
+      const metadata = await extractVideoMetadata(file)
+      duration = metadata.duration
+      resolution = metadata.resolution
+    } catch (e) {
+      console.error('Failed to extract video metadata:', e)
+    }
+
+    // Get file extension
+    const format = file.name.split('.').pop()?.toUpperCase()
+
+    const newJob: ProcessingJob = {
+      id: jobId,
+      filename: file.name,
+      status: "uploading",
+      progress: 0,
+      thumbnail,
+      startTime: Date.now(),
+      fileSize: file.size,
+      duration,
+      resolution,
+      format
+    }
+
+    setJobs((prev) => [...prev, newJob])
+    setIsUploading(true)
+    
+    toast.promise(
+      (async () => {
+        // Upload file with options
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("options", JSON.stringify(options))
+
+        // Get auth token if user is logged in
+        const { data: { session } } = await supabase.auth.getSession()
+        const headers: HeadersInit = {}
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`
+        }
+
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          headers,
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error("Upload failed")
+        }
+
+        const { jobId: serverJobId } = await uploadResponse.json()
+
+        // Update job status and store serverJobId
+        setJobs((prev) =>
+          prev.map((job) =>
+            job.id === jobId
+              ? { ...job, serverJobId, status: "processing", progress: 10 }
+              : job
+          )
+        )
+
+        // Subscribe to real-time updates
+        subscribeToJob(serverJobId, jobId)
+      })(),
+      {
+        loading: `Uploading ${file.name}...`,
+        success: `Processing ${file.name}`,
+        error: `Failed to upload ${file.name}`,
+      }
+    )
     
     setIsUploading(false)
-  }, [options, checkUsageBeforeUpload])
+  }, [options, user])
 
   // Use Supabase real-time subscriptions with polling fallback
   const channelsRef = useRef<Map<string, any>>(new Map())
@@ -1411,6 +1526,191 @@ export default function Home() {
       </div>
 
       {/* Modals */}
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {showPreview && previewOriginal && previewProcessed && selectedFile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowPreview(false)
+              setSelectedFile(null)
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    <Eye className="inline-block h-6 w-6 mr-2 text-green-500" />
+                    Preview: How will it look?
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowPreview(false)
+                      setSelectedFile(null)
+                    }}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+                
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                  Adjust settings below to fine-tune the chroma key. The preview updates in real-time.
+                </p>
+                
+                {/* Before/After Comparison */}
+                <div className="grid md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
+                      Original Frame
+                    </p>
+                    <img 
+                      src={previewOriginal} 
+                      alt="Original frame" 
+                      className="w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 shadow-lg"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
+                      After Chroma Key (Transparent Background)
+                    </p>
+                    <img 
+                      src={previewProcessed} 
+                      alt="Processed frame" 
+                      className="w-full rounded-lg border-2 border-green-200 dark:border-green-700 shadow-lg"
+                    />
+                  </div>
+                </div>
+                
+                {/* Settings Adjustment */}
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 mb-6">
+                  <p className="text-sm font-medium mb-4 text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Adjust settings (preview updates automatically):
+                  </p>
+                  
+                  {/* Chroma Tolerance Slider */}
+                  <div className="mb-4">
+                    <label className="text-sm text-slate-600 dark:text-slate-400 flex justify-between mb-1">
+                      <span>Chroma Tolerance</span>
+                      <span className="font-mono text-green-600 dark:text-green-400">{options.chromaTolerance.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="0.5"
+                      step="0.01"
+                      value={options.chromaTolerance}
+                      onChange={async (e) => {
+                        const newOptions = { ...options, chromaTolerance: parseFloat(e.target.value) }
+                        setOptions(newOptions)
+                        // Regenerate preview
+                        if (selectedFile) {
+                          try {
+                            const { processed } = await generatePreview(selectedFile, newOptions)
+                            setPreviewProcessed(processed)
+                          } catch (error) {
+                            console.error('Preview update failed:', error)
+                          }
+                        }
+                      }}
+                      className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-600"
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Lower = more precise, Higher = removes more green
+                    </p>
+                  </div>
+                  
+                  {/* Color Picker */}
+                  <div>
+                    <label className="text-sm text-slate-600 dark:text-slate-400 mb-2 block">
+                      Green Screen Color
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={options.backgroundColor}
+                        onChange={async (e) => {
+                          const newOptions = { ...options, backgroundColor: e.target.value }
+                          setOptions(newOptions)
+                          // Regenerate preview
+                          if (selectedFile) {
+                            try {
+                              const { processed } = await generatePreview(selectedFile, newOptions)
+                              setPreviewProcessed(processed)
+                            } catch (error) {
+                              console.error('Preview update failed:', error)
+                            }
+                          }
+                        }}
+                        className="h-10 w-20 rounded border-2 border-slate-300 dark:border-slate-600 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={options.backgroundColor}
+                        onChange={async (e) => {
+                          const newOptions = { ...options, backgroundColor: e.target.value }
+                          setOptions(newOptions)
+                          // Regenerate preview
+                          if (selectedFile && /^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                            try {
+                              const { processed } = await generatePreview(selectedFile, newOptions)
+                              setPreviewProcessed(processed)
+                            } catch (error) {
+                              console.error('Preview update failed:', error)
+                            }
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border-2 border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
+                        placeholder="#00FF00"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Click the color picker to match your exact green screen shade
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowPreview(false)
+                      // Proceed with upload
+                      if (selectedFile) {
+                        handleUpload(selectedFile)
+                      }
+                    }}
+                    className="flex-1 py-3 px-6 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    <CheckCircle2 className="h-5 w-5" />
+                    Looks Good - Process Full Video
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPreview(false)
+                      setSelectedFile(null)
+                    }}
+                    className="px-6 py-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 font-medium rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
       <UpgradePrompt
         isOpen={showUpgrade}
