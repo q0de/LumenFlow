@@ -57,9 +57,14 @@
     @apply bg-background text-foreground;
   }
   
-  /* Apply Calafia font to all headings */
-  h1, h2, h3, h4, h5, h6 {
+  /* Apply Calafia font only to large headings (h1, h2) */
+  h1, h2 {
     font-family: var(--font-calafia), sans-serif;
+  }
+  
+  /* Keep Inter font for smaller headings (h3, h4, h5, h6) for better readability */
+  h3, h4, h5, h6 {
+    font-family: inherit;
   }
 }
 
