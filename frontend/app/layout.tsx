@@ -8,12 +8,12 @@ import { Toaster } from "sonner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://greenscreenremover.com'),
+  metadataBase: new URL('https://www.greenscreenremover.com'),
   title: {
     default: "Green Screen Remover — Free AI Video Background Removal Tool Online",
     template: "%s | Green Screen Remover"
   },
-  description: "Remove green screen from videos online for free. AI-powered chroma key removal with transparent WebM export. Perfect for Unity, Unreal Engine, and game development. No software installation required.",
+  description: "Remove green screens from videos instantly with AI-powered chroma key removal. Export transparent WebM for Unity & Unreal Engine. Free online tool, no installation needed.",
   keywords: [
     // Primary Keywords (High Volume)
     "remove green screen from video",
@@ -48,12 +48,12 @@ export const metadata: Metadata = {
     "green screen editor",
     "video compositor online"
   ].join(", "),
-  authors: [{ name: "Green Screen Remover", url: "https://greenscreenremover.com" }],
+  authors: [{ name: "Green Screen Remover", url: "https://www.greenscreenremover.com" }],
   creator: "Green Screen Remover",
   publisher: "Green Screen Remover",
   category: "Multimedia Tools",
   alternates: {
-    canonical: "https://greenscreenremover.com"
+    canonical: "https://www.greenscreenremover.com"
   },
   formatDetection: {
     email: false,
@@ -63,13 +63,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://greenscreenremover.com",
+    url: "https://www.greenscreenremover.com",
     title: "Green Screen Remover — Free AI Video Background Removal Online",
-    description: "Remove green screen from videos online for free. AI-powered chroma key with transparent WebM export. Perfect for Unity & game development. No installation required.",
+    description: "Remove green screens instantly with AI chroma key. Export transparent WebM for Unity & Unreal. Free online tool, no installation.",
     siteName: "Green Screen Remover",
     images: [
       {
-        url: "https://greenscreenremover.com/opengraph-image",
+        url: "https://www.greenscreenremover.com/opengraph-image",
         width: 1200,
         height: 630,
         alt: "Green Screen Remover - AI-Powered Chroma Key Tool",
@@ -79,11 +79,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "@greenscreenrem",
-    creator: "@greenscreenrem",
+    site: "@crypt0e",
+    creator: "@crypt0e",
     title: "Green Screen Remover — Free AI Video Background Removal",
-    description: "Remove green screen from videos online. AI-powered chroma key with transparent WebM export. Perfect for Unity & game development.",
-    images: ["https://greenscreenremover.com/opengraph-image"],
+    description: "Remove green screens instantly with AI chroma key. Export transparent WebM for Unity & Unreal. Free online tool.",
+    images: ["https://www.greenscreenremover.com/opengraph-image"],
   },
   robots: {
     index: true,
@@ -120,7 +120,7 @@ export default function RootLayout({
     '@type': 'SoftwareApplication',
     name: 'Green Screen Remover',
     alternateName: 'AI Green Screen Removal Tool',
-    url: 'https://greenscreenremover.com',
+    url: 'https://www.greenscreenremover.com',
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Web Browser',
     browserRequirements: 'Requires JavaScript and HTML5',
@@ -138,11 +138,11 @@ export default function RootLayout({
       worstRating: '1',
     },
     description: 'Remove green screen from videos online for free. AI-powered chroma key removal with transparent WebM export. Perfect for Unity, Unreal Engine, and game development. No software installation required.',
-    screenshot: 'https://greenscreenremover.com/opengraph-image',
+    screenshot: 'https://www.greenscreenremover.com/opengraph-image',
     author: {
       '@type': 'Organization',
       name: 'Green Screen Remover',
-      url: 'https://greenscreenremover.com'
+      url: 'https://www.greenscreenremover.com'
     },
     datePublished: '2025-01-01',
     inLanguage: 'en-US',
@@ -153,11 +153,10 @@ export default function RootLayout({
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'Green Screen Remover',
-    url: 'https://greenscreenremover.com',
-    logo: 'https://greenscreenremover.com/logo.png',
+    url: 'https://www.greenscreenremover.com',
+    logo: 'https://www.greenscreenremover.com/logo.png',
     sameAs: [
-      'https://twitter.com/greenscreenrem',
-      // Add more social profiles when created
+      'https://twitter.com/crypt0e',
     ],
     contactPoint: {
       '@type': 'ContactPoint',

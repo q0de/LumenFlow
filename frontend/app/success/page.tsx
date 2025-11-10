@@ -39,7 +39,7 @@ export default function SuccessPage() {
               Start Converting Videos
             </button>
           </Link>
-          <Link href="/account">
+          <Link href="/pricing">
             <button className="w-full py-3 px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 font-medium rounded-lg transition-colors">
               Manage Subscription
             </button>

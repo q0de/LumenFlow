@@ -1,8 +1,8 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  // Use non-www version consistently for canonical URLs
-  const baseUrl = 'https://greenscreenremover.com'
+  // Use www version consistently for canonical URLs
+  const baseUrl = 'https://www.greenscreenremover.com'
   
   return [
     {
