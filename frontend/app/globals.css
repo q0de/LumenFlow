@@ -62,9 +62,9 @@
     font-family: var(--font-calafia), sans-serif;
   }
   
-  /* Keep Inter font for smaller headings (h3, h4, h5, h6) for better readability */
+  /* Explicitly use Inter font for smaller headings (h3, h4, h5, h6) for better readability */
   h3, h4, h5, h6 {
-    font-family: inherit;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   }
 }
 
