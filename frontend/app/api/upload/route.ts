@@ -289,21 +289,21 @@ async function processVideo(
       const webmPath = join(webmDir, `${baseFilename}.webm`)
 
       // Improved chroma keying with better filter chain
-      // Using chromakey filter (more reliable than colorkey)
-      // similarity: 0.0-1.0 (how similar to key color, higher = removes more)
-      // blend: 0.0-1.0 (edge blending, lower = sharper edges)
-      // Map tolerance (0-1) to similarity range for better green removal
-      // Balance between removing green and preserving subject
-      const similarity = 0.2 + (tolerance * 0.4) // Balanced range: 0.2-0.6
-      const blend = 0.08 // Moderate blend for smooth edges
+      // Using colorkey filter for more predictable results that match preview
+      // similarity: 0.0-1.0 (color distance threshold, higher = removes more)
+      // blend: 0.0-1.0 (edge blending for smooth transitions)
+      // Convert tolerance (0.1-0.5) to similarity (0.01-0.5) for better control
+      // This should match the client-side Euclidean distance calculation
+      const similarity = tolerance // Direct mapping for consistency with preview
+      const blend = 0.1 // Moderate blend for smooth edges
       
-      // Use chromakey filter - creates alpha channel automatically
-      // chromakey=color:similarity:blend
+      // Use colorkey filter - more predictable color distance matching
+      // colorkey=color:similarity:blend
       // Optionally resize based on user options
       // Add watermark for free tier users
       // Then convert to yuva420p format to ensure alpha is preserved
       const filters = [
-        `chromakey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
+        `colorkey=0x${bgColor.toUpperCase()}:${similarity}:${blend}`,
         ...(options.enableResize ? [`scale=${options.outputWidth}:-1`] : []),
         ...(addWatermark ? [
           // Diagonal repeating watermark pattern (waterfall effect)
