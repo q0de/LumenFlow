@@ -169,12 +169,12 @@ async function detectGreenScreenColor(inputPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     process.stderr.write(`🎨 Auto-detecting green screen color from video...\n`)
     
-    // Sample from corners and edges where green screen is most pure
-    // We'll take multiple samples and find the most saturated green
-    // This avoids sampling the subject and lighting variations
+    // Sample from edges where green screen is most pure (avoiding center where subject is)
+    // We sample from the left and right edges, far from the subject
+    // Using a vertical strip on the left edge to get pure green screen
     const ffmpeg = spawn('ffmpeg', [
       '-i', inputPath,
-      '-vf', 'crop=200:200:0:0,scale=1:1', // Sample top-left corner 200x200, average to 1 pixel
+      '-vf', 'crop=100:ih:0:0,scale=1:1', // Sample left edge: 100px wide, full height, average to 1 pixel
       '-vframes', '1',
       '-f', 'rawvideo',
       '-pix_fmt', 'rgb24',
