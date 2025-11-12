@@ -6,18 +6,36 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_
   apiVersion: "2025-10-29.clover",
 })
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(request: NextRequest) {
+  // Log webhook receipt for debugging
+  process.stderr.write(`🔔 Stripe webhook received at ${new Date().toISOString()}\n`)
+  
+  // Check if webhook secret is configured
+  if (!webhookSecret) {
+    process.stderr.write(`❌ STRIPE_WEBHOOK_SECRET is not configured!\n`)
+    return NextResponse.json(
+      { error: "Webhook secret not configured" },
+      { status: 500 }
+    )
+  }
+
   const body = await request.text()
-  const signature = request.headers.get("stripe-signature")!
+  const signature = request.headers.get("stripe-signature")
+
+  if (!signature) {
+    process.stderr.write(`❌ No stripe-signature header found\n`)
+    return NextResponse.json({ error: "No signature" }, { status: 400 })
+  }
 
   let event: Stripe.Event
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    process.stderr.write(`✅ Webhook signature verified: ${event.type}\n`)
   } catch (err: any) {
-    console.error(`Webhook signature verification failed: ${err.message}`)
+    process.stderr.write(`❌ Webhook signature verification failed: ${err.message}\n`)
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
@@ -30,16 +48,24 @@ export async function POST(request: NextRequest) {
         const userId = session.metadata?.supabase_user_id
 
         if (!userId) {
+          process.stderr.write(`❌ No user ID in checkout session metadata\n`)
           throw new Error("No user ID in session metadata")
         }
 
+        process.stderr.write(`💳 Processing checkout.session.completed for user ${userId}\n`)
+
         // Update user to pro tier
-        await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({ subscription_tier: 'pro' })
           .eq('id', userId)
 
-        console.log(`✅ User ${userId} upgraded to pro tier`)
+        if (error) {
+          process.stderr.write(`❌ Failed to upgrade user ${userId}: ${error.message}\n`)
+          throw error
+        }
+
+        process.stderr.write(`✅ User ${userId} upgraded to pro tier\n`)
         break
       }
 
@@ -140,15 +166,19 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        process.stderr.write(`ℹ️ Unhandled event type: ${event.type}\n`)
     }
 
-    return NextResponse.json({ received: true })
+    process.stderr.write(`✅ Webhook processed successfully: ${event.type}\n`)
+    return NextResponse.json({ received: true }, { status: 200 })
   } catch (error: any) {
-    console.error(`Webhook handler error: ${error.message}`)
+    process.stderr.write(`❌ Webhook handler error: ${error.message}\n`)
+    process.stderr.write(`Stack trace: ${error.stack}\n`)
+    // Still return 200 to prevent Stripe from retrying on our app errors
+    // Log the error but acknowledge receipt
     return NextResponse.json(
-      { error: "Webhook handler failed" },
-      { status: 500 }
+      { received: true, error: error.message },
+      { status: 200 }
     )
   }
 }
