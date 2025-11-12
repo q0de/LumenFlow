@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useDropzone } from "react-dropzone"
-import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye, Copy, Moon, Sun, Clock, Trash2, Zap, Lock } from "lucide-react"
+import { Upload, Video, Download, Loader2, CheckCircle2, XCircle, Settings, ChevronDown, ChevronUp, Eye, Copy, Moon, Sun, Clock, Trash2, Zap, Lock, Pipette } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { supabase, isSupabaseAvailable } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
@@ -80,6 +80,8 @@ export default function Home() {
   const [previewProcessed, setPreviewProcessed] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
+  const [isEyedropperActive, setIsEyedropperActive] = useState(false)
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null)
   
   // Progress smoothing - track last update time for interpolation
   const progressTimestampsRef = useRef<Map<string, { progress: number, timestamp: number }>>(new Map())
@@ -1573,11 +1575,75 @@ export default function Home() {
                     <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
                       Original Frame
                     </p>
-                    <img 
-                      src={previewOriginal} 
-                      alt="Original frame" 
-                      className="w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 shadow-lg"
-                    />
+                    <div className="relative">
+                      <img 
+                        src={previewOriginal} 
+                        alt="Original frame" 
+                        className={`w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 shadow-lg ${isEyedropperActive ? 'cursor-crosshair' : ''}`}
+                        onClick={(e) => {
+                          if (isEyedropperActive && previewOriginal) {
+                            // Get click coordinates relative to image
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const x = e.clientX - rect.left
+                            const y = e.clientY - rect.top
+                            
+                            // Create a canvas to read pixel data
+                            const canvas = document.createElement('canvas')
+                            const ctx = canvas.getContext('2d')
+                            const img = new Image()
+                            img.crossOrigin = 'anonymous'
+                            img.src = previewOriginal
+                            
+                            img.onload = async () => {
+                              canvas.width = img.width
+                              canvas.height = img.height
+                              ctx?.drawImage(img, 0, 0)
+                              
+                              // Scale coordinates to actual image size
+                              const scaleX = img.width / rect.width
+                              const scaleY = img.height / rect.height
+                              const actualX = Math.floor(x * scaleX)
+                              const actualY = Math.floor(y * scaleY)
+                              
+                              // Get pixel color
+                              const pixel = ctx?.getImageData(actualX, actualY, 1, 1).data
+                              if (pixel) {
+                                const r = pixel[0]
+                                const g = pixel[1]
+                                const b = pixel[2]
+                                const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase()
+                                
+                                // Update color and regenerate preview
+                                const newOptions = { ...options, backgroundColor: hex }
+                                setOptions(newOptions)
+                                setIsEyedropperActive(false)
+                                
+                                toast.success(`Color picked: ${hex}`, { duration: 2000 })
+                                
+                                // Regenerate preview with new color
+                                if (selectedFile) {
+                                  try {
+                                    const { processed } = await generatePreview(selectedFile, newOptions)
+                                    setPreviewProcessed(processed)
+                                  } catch (error) {
+                                    console.error('Preview update failed:', error)
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }}
+                      />
+                      {isEyedropperActive && (
+                        <div className="absolute inset-0 bg-green-500/10 rounded-lg pointer-events-none flex items-center justify-center">
+                          <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-lg shadow-lg border-2 border-green-500">
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                              Click on the green screen to pick color
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
@@ -1673,9 +1739,28 @@ export default function Home() {
                         className="flex-1 px-3 py-2 border-2 border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
                         placeholder="#00FF00"
                       />
+                      <button
+                        onClick={() => {
+                          setIsEyedropperActive(!isEyedropperActive)
+                          if (!isEyedropperActive) {
+                            toast.info('Click on the green screen in the preview image to pick a color', { duration: 3000 })
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                          isEyedropperActive 
+                            ? 'bg-green-600 text-white shadow-lg' 
+                            : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100'
+                        }`}
+                        title="Pick color from video"
+                      >
+                        <Pipette className="h-4 w-4" />
+                        {isEyedropperActive ? 'Cancel' : 'Pick'}
+                      </button>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Click the color picker to match your exact green screen shade
+                      {isEyedropperActive 
+                        ? '👆 Click on the green screen in the preview above to pick the exact color' 
+                        : 'Use the eyedropper to pick the exact green color from your video'}
                     </p>
                   </div>
                 </div>

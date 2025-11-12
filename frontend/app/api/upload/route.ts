@@ -130,9 +130,10 @@ export async function POST(request: NextRequest) {
     } else {
       process.stderr.write(`👤 Anonymous user - allowing trial upload\n`)
       addWatermark = true // Always watermark for anonymous users
+      process.stderr.write(`🖼️ Anonymous user - watermark will be added\n`)
     }
 
-    process.stderr.write(`🎨 FINAL DECISION: addWatermark = ${addWatermark}, userId = ${userId || 'anonymous'}\n`)
+    process.stderr.write(`🎨 FINAL DECISION: addWatermark = ${addWatermark}, userTier = ${userTier}, userId = ${userId || 'anonymous'}\n`)
 
     // Initialize job in Supabase with user ownership
     await setJob(jobId, {
